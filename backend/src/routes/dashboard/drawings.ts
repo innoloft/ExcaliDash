@@ -8,6 +8,7 @@ import { registerDrawingDeleteDuplicateRoutes } from "./drawingDeleteDuplicateRo
 import { registerDrawingSharingRoutes } from "./drawingSharingRoutes";
 import { registerDrawingSharedVisibilityRoutes } from "./drawingSharedVisibilityRoutes";
 import { registerDrawingHistoryRoutes } from "./drawingHistoryRoutes";
+import { registerDrawingCommentRoutes } from "./drawingCommentRoutes";
 
 export const registerDrawingRoutes = (
   app: express.Express,
@@ -22,4 +23,5 @@ export const registerDrawingRoutes = (
   registerDrawingSharingRoutes(app, context);
   registerDrawingSharedVisibilityRoutes(app, context);
   registerDrawingHistoryRoutes(app, context);
+  registerDrawingCommentRoutes(app, context);
 };

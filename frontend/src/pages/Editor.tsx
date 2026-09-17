@@ -14,6 +14,7 @@ import { useLibraryImportFromUrl } from "./editor/useLibraryImportFromUrl";
 import { useEditorSnapshotGuards } from "./editor/useEditorSnapshotGuards";
 import { useEditorSceneLoader } from "./editor/useEditorSceneLoader";
 import { useEditorCollaboration } from "./editor/useEditorCollaboration";
+import { useEditorComments } from "./editor/useEditorComments";
 import { useEditorPersistence } from "./editor/useEditorPersistence";
 import { useEditorCanvasHandlers } from "./editor/useEditorCanvasHandlers";
 import { useEditorCommands } from "./editor/useEditorCommands";
@@ -115,6 +116,12 @@ const ExcalidrawEditor: React.FC = () => {
       replace: true,
     });
   }, [id, location.hash, location.pathname, location.search, navigate]);
+  const comments = useEditorComments({
+    drawingId: id,
+    accessLevel,
+    currentUserId: user?.id ?? null,
+    excalidrawAPI,
+  });
   const { peers, socketMeRef, socketRef, isSyncing, onPointerUpdate } =
     useEditorCollaboration({
       drawingId: id,
@@ -129,6 +136,7 @@ const ExcalidrawEditor: React.FC = () => {
       computeElementOrderSig,
       recordElementVersion,
       onAccessDenied: handleSocketAccessDenied,
+      onCommentsChanged: comments.refresh,
     });
   const { scanNow: scanFileUploads } = useEditorFileUploads({
     drawingId: id,
@@ -326,6 +334,7 @@ const ExcalidrawEditor: React.FC = () => {
         autoHideEnabled={autoHideEnabled}
         autosaveFailing={autosaveFailing}
         canEdit={canEdit}
+        comments={comments}
         drawingName={drawingName}
         editorContainerRef={editorContainerRef}
         initialData={initialData}

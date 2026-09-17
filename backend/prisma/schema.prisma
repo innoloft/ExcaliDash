@@ -23,6 +23,7 @@ model User {
   drawings            Drawing[]
   collections         Collection[]
   drawingPermissions  DrawingPermission[]
+  drawingComments     DrawingComment[]
   collectionShares    CollectionShare[]
   passwordResetTokens PasswordResetToken[]
   refreshTokens       RefreshToken[]
@@ -80,6 +81,7 @@ model Drawing {
   permissions  DrawingPermission[]
   linkShares   DrawingLinkShare[]
   snapshots    DrawingSnapshot[]
+  comments     DrawingComment[]
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
 
@@ -99,6 +101,37 @@ model DrawingSnapshot {
 
   @@index([drawingId, createdAt])
   @@index([createdAt])
+}
+
+/// A comment pinned to a point on a drawing's canvas. A root comment
+/// (`parentId` null) owns a thread and carries the pin's scene coordinates;
+/// replies hang off the root and render at the root's pin.
+model DrawingComment {
+  id               String           @id @default(uuid())
+  drawingId        String
+  drawing          Drawing          @relation(fields: [drawingId], references: [id], onDelete: Cascade)
+  parentId         String?
+  parent           DrawingComment?  @relation("DrawingCommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies          DrawingComment[] @relation("DrawingCommentReplies")
+  // Null once the author's account is deleted, and for anonymous link-share
+  // visitors (who are always recorded as guests, never as a named account).
+  authorUserId     String?
+  authorUser       User?            @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+  // Display name captured at post time so an old thread still reads correctly
+  // after the account is renamed or removed.
+  authorName       String
+  body             String
+  // Scene coordinates of the pin. Replies inherit the root's position and
+  // store 0, so only root rows are ever read for placement.
+  x                Float            @default(0)
+  y                Float            @default(0)
+  resolvedAt       DateTime?
+  resolvedByUserId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  @@index([drawingId, createdAt])
+  @@index([parentId])
 }
 
 model DrawingPermission {

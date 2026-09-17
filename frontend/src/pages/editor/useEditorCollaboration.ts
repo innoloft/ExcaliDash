@@ -24,6 +24,8 @@ type UseEditorCollaborationInput = {
   computeElementOrderSig: (elements: readonly any[]) => string;
   recordElementVersion: (element: any) => void;
   onAccessDenied: () => void;
+  // Fired when a peer adds, resolves or removes a comment on this drawing.
+  onCommentsChanged?: () => void;
 };
 
 const getSocketUrl = () =>
@@ -46,6 +48,7 @@ export const useEditorCollaboration = ({
   computeElementOrderSig,
   recordElementVersion,
   onAccessDenied,
+  onCommentsChanged,
 }: UseEditorCollaborationInput) => {
   const [socketMe, setSocketMe] = useState<UserIdentity>(me);
   const socketMeRef = useRef<UserIdentity>(socketMe);
@@ -61,6 +64,12 @@ export const useEditorCollaboration = ({
   const pendingRemoteElementOrderRef = useRef<string[] | null>(null);
   const remoteFlushScheduledRef = useRef(false);
   const remoteFlushRafIdRef = useRef<number | null>(null);
+  // Held in a ref so a changing callback identity never tears down the socket.
+  const onCommentsChangedRef = useRef(onCommentsChanged);
+
+  useEffect(() => {
+    onCommentsChangedRef.current = onCommentsChanged;
+  }, [onCommentsChanged]);
 
   useEffect(() => {
     setSocketMe(me);
@@ -277,6 +286,10 @@ export const useEditorCollaboration = ({
         scheduleRemoteFlush();
       },
     );
+    socket.on("comments-changed", (payload: { drawingId?: string }) => {
+      if (!payload?.drawingId || payload.drawingId !== drawingId) return;
+      onCommentsChangedRef.current?.();
+    });
     socket.on("drawing-server-update", (payload: { drawingId?: string }) => {
       if (!payload?.drawingId || payload.drawingId !== drawingId) return;
       toast.info("Drawing storage changed on the server. Reloading the editor.");
@@ -306,6 +319,7 @@ export const useEditorCollaboration = ({
       socket.off("error");
       socket.off("cursor-move");
       socket.off("element-update");
+      socket.off("comments-changed");
       socket.off("drawing-server-update");
       socket.disconnect();
       if (remoteFlushRafIdRef.current !== null) {

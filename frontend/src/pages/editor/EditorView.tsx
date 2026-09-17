@@ -8,6 +8,7 @@ import {
   Download,
   History,
   Loader2,
+  MessagesSquare,
   Share2,
 } from "lucide-react";
 import clsx from "clsx";
@@ -17,6 +18,9 @@ import {
 } from "../../components/LanguageSelector";
 import { GridStepSelector } from "../../components/GridStepSelector";
 import type { UserIdentity } from "../../utils/identity";
+import { CommentsOverlay } from "../../components/comments/CommentsOverlay";
+import { CommentsPanel } from "../../components/comments/CommentsPanel";
+import type { EditorCommentsState } from "./useEditorComments";
 import { UIOptions } from "./shared";
 
 interface Peer extends UserIdentity {
@@ -29,6 +33,7 @@ type EditorViewProps = {
   autoHideEnabled: boolean;
   autosaveFailing: boolean;
   canEdit: boolean;
+  comments: EditorCommentsState;
   drawingName: string;
   editorContainerRef: React.RefObject<HTMLDivElement>;
   initialData: any;
@@ -93,6 +98,7 @@ export const EditorView: React.FC<EditorViewProps> = ({
   autoHideEnabled,
   autosaveFailing,
   canEdit,
+  comments,
   drawingName,
   editorContainerRef,
   initialData,
@@ -183,6 +189,27 @@ export const EditorView: React.FC<EditorViewProps> = ({
           <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-200 border border-amber-200 dark:border-amber-800">
             Read-only
           </span>
+        ) : null}
+        {comments.canComment && id ? (
+          <button
+            onClick={
+              comments.isPanelOpen ? comments.closePanel : comments.openPanel
+            }
+            className={clsx(
+              "relative p-2 rounded-lg transition-colors",
+              comments.isPanelOpen
+                ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400"
+                : "hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-300",
+            )}
+            title="Comments"
+          >
+            <MessagesSquare size={20} />
+            {comments.openThreadCount > 0 ? (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-indigo-600 text-white text-[10px] font-bold flex items-center justify-center">
+                {comments.openThreadCount}
+              </span>
+            ) : null}
+          </button>
         ) : null}
         {canEdit && id ? (
           <button
@@ -295,7 +322,9 @@ export const EditorView: React.FC<EditorViewProps> = ({
           </span>
         </div>
       )}
+      <CommentsOverlay comments={comments} />
       <Toaster position="bottom-center" />
     </div>
+    <CommentsPanel comments={comments} />
   </div>
 );
