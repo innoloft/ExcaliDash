@@ -114,6 +114,19 @@ export const canDeleteComment = (params: {
   isCommentAuthor(params.comment, params.principal);
 
 /**
+ * The pin is part of what a comment says — it points at the thing being
+ * discussed — so moving it follows the same rule as deleting: the author, or
+ * the drawing's owner moderating their own canvas.
+ */
+export const canMoveComment = (params: {
+  access: DrawingAccess;
+  comment: Pick<CommentRecord, "authorUserId">;
+  principal: DrawingPrincipal | null;
+}): boolean =>
+  isOwnerAccess(params.access) ||
+  isCommentAuthor(params.comment, params.principal);
+
+/**
  * Resolving closes a thread rather than destroying it, so anyone who can edit
  * the drawing may do it — plus the thread's author, who may only have view
  * access but is entitled to close their own question.

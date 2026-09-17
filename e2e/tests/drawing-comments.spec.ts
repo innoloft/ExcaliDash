@@ -11,6 +11,7 @@ import {
  * - a pin placed on the canvas persists and reappears after a reload
  * - replies show up under the thread
  * - resolving hides the pin until "Show resolved" is ticked
+ * - dragging a pin re-anchors its thread
  */
 
 const revealEditorHeader = async (page: import("@playwright/test").Page) => {
@@ -67,6 +68,63 @@ test.describe("Drawing Comments", () => {
     await page.reload();
     await page.waitForSelector("canvas", { timeout: 20000 });
     await expect(pin).toHaveCount(1);
+  });
+
+  test("drags a pin to a new spot on the canvas", async ({ page, request }) => {
+    const drawing = await createDrawing(request, { name: "Comment Drag" });
+    createdDrawingIds.push(drawing.id);
+
+    const csrfHeaders = await getCsrfHeaders(request);
+    const created = await request.post(
+      `${API_URL}/drawings/${drawing.id}/comments`,
+      {
+        headers: csrfHeaders,
+        data: { body: "Movable pin", x: 100, y: 100 },
+      },
+    );
+    expect(created.status()).toBe(201);
+
+    await page.goto(`/editor/${drawing.id}`);
+    await page.waitForSelector("canvas", { timeout: 20000 });
+
+    const pin = page.locator('button[title*="Movable pin"]');
+    await expect(pin).toHaveCount(1);
+    const before = await pin.boundingBox();
+    if (!before) throw new Error("Comment pin has no bounding box");
+
+    await page.mouse.move(
+      before.x + before.width / 2,
+      before.y + before.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      before.x + before.width / 2 + 160,
+      before.y + before.height / 2 + 90,
+      { steps: 12 },
+    );
+    await page.mouse.up();
+
+    // The pin's new scene position is what gets persisted; how far it travels
+    // in scene units depends on the canvas zoom, so assert the direction.
+    await expect
+      .poll(
+        async () => {
+          const response = await request.get(
+            `${API_URL}/drawings/${drawing.id}/comments`,
+          );
+          const payload = await response.json();
+          const { x, y } = payload.comments[0];
+          return x > 100 && y > 100;
+        },
+        { timeout: 10000 },
+      )
+      .toBe(true);
+
+    const after = await pin.boundingBox();
+    expect(after?.x ?? 0).toBeGreaterThan(before.x);
+
+    // The drag must not have opened the thread as a click would.
+    await expect(page.getByPlaceholder("Reply…")).toHaveCount(0);
   });
 
   test("shows a reply in the thread and hides a resolved thread", async ({

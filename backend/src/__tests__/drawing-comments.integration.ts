@@ -274,6 +274,106 @@ describe("Drawing comments", () => {
     expect(reopened.body.resolvedAt).toBeNull();
   });
 
+  it("moves a pin for its author, and refuses a stranger's pin", async () => {
+    const drawing = await createDrawing();
+    await shareWithViewer(drawing.id);
+
+    const viewerThread = await viewerAgent
+      .post(`/drawings/${drawing.id}/comments`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${viewerToken}`)
+      .set(viewerCsrf.name, viewerCsrf.token)
+      .send({ body: "over here", x: 10, y: 10 });
+
+    // The author re-anchors their own pin even with view-only access.
+    const moved = await viewerAgent
+      .patch(`/drawings/${drawing.id}/comments/${viewerThread.body.id}`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${viewerToken}`)
+      .set(viewerCsrf.name, viewerCsrf.token)
+      .send({ x: -25.5, y: 300 });
+    expect(moved.status).toBe(200);
+    expect(moved.body.x).toBe(-25.5);
+    expect(moved.body.y).toBe(300);
+
+    const ownerThread = await ownerAgent
+      .post(`/drawings/${drawing.id}/comments`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set(ownerCsrf.name, ownerCsrf.token)
+      .send({ body: "owner pin", x: 1, y: 1 });
+
+    const forbidden = await viewerAgent
+      .patch(`/drawings/${drawing.id}/comments/${ownerThread.body.id}`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${viewerToken}`)
+      .set(viewerCsrf.name, viewerCsrf.token)
+      .send({ x: 2, y: 2 });
+    expect(forbidden.status).toBe(403);
+
+    // The owner moderates any pin on their own canvas.
+    const byOwner = await ownerAgent
+      .patch(`/drawings/${drawing.id}/comments/${viewerThread.body.id}`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set(ownerCsrf.name, ownerCsrf.token)
+      .send({ x: 7, y: 8 });
+    expect(byOwner.status).toBe(200);
+    expect(byOwner.body.x).toBe(7);
+  });
+
+  it("rejects a half-specified or non-finite pin move", async () => {
+    const drawing = await createDrawing();
+
+    const thread = await ownerAgent
+      .post(`/drawings/${drawing.id}/comments`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set(ownerCsrf.name, ownerCsrf.token)
+      .send({ body: "anchored", x: 4, y: 4 });
+
+    const patch = (payload: Record<string, unknown>) =>
+      ownerAgent
+        .patch(`/drawings/${drawing.id}/comments/${thread.body.id}`)
+        .set("User-Agent", userAgent)
+        .set("Authorization", `Bearer ${ownerToken}`)
+        .set(ownerCsrf.name, ownerCsrf.token)
+        .send(payload);
+
+    expect((await patch({ x: 5 })).status).toBe(400);
+    expect((await patch({ x: 5, y: "6" })).status).toBe(400);
+    expect((await patch({ x: 5, y: 1e12 })).status).toBe(400);
+    expect((await patch({})).status).toBe(400);
+
+    const unchanged = await prisma.drawingComment.findUnique({
+      where: { id: thread.body.id },
+      select: { x: true, y: true },
+    });
+    expect(unchanged).toMatchObject({ x: 4, y: 4 });
+  });
+
+  it("moves and resolves a thread in one request", async () => {
+    const drawing = await createDrawing();
+
+    const thread = await ownerAgent
+      .post(`/drawings/${drawing.id}/comments`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set(ownerCsrf.name, ownerCsrf.token)
+      .send({ body: "two edits", x: 0, y: 0 });
+
+    const updated = await ownerAgent
+      .patch(`/drawings/${drawing.id}/comments/${thread.body.id}`)
+      .set("User-Agent", userAgent)
+      .set("Authorization", `Bearer ${ownerToken}`)
+      .set(ownerCsrf.name, ownerCsrf.token)
+      .send({ x: 3, y: 4, resolved: true });
+
+    expect(updated.status).toBe(200);
+    expect(updated.body).toMatchObject({ x: 3, y: 4 });
+    expect(updated.body.resolvedAt).not.toBeNull();
+  });
+
   it("removes a drawing's comments when the drawing is deleted", async () => {
     const drawing = await createDrawing();
     await ownerAgent

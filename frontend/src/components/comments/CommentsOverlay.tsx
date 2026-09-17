@@ -2,13 +2,34 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { MessageSquare, X } from "lucide-react";
 import type { EditorCommentsState } from "../../pages/editor/useEditorComments";
-import { canvasPointToScene, sceneToCanvasPoint } from "../../utils/canvasCoords";
+import {
+  canvasPointToScene,
+  sceneToCanvasPoint,
+  type Point,
+} from "../../utils/canvasCoords";
 import { CommentComposer } from "./CommentComposer";
 import { CommentThreadCard } from "./CommentThreadCard";
 
 const POPOVER_WIDTH = 288; // matches w-72
 const POPOVER_MAX_HEIGHT = 280;
 const PIN_OFFSET = 14;
+// Below this many pixels a pointer press is a click that opens the thread, not
+// a drag: pins are small, and a hand rarely presses one perfectly still.
+const DRAG_THRESHOLD_PX = 3;
+
+type DragState = {
+  threadId: string;
+  pointerId: number;
+  /** Where the press started, in client pixels. */
+  originClient: Point;
+  /** The pin's scene position when the press started. */
+  originScene: Point;
+  /** Live scene position while dragging, or the origin before the threshold. */
+  scene: Point;
+  /** False for a pin this user may read but not re-anchor. */
+  movable: boolean;
+  moved: boolean;
+};
 
 type Props = {
   comments: EditorCommentsState;
@@ -16,13 +37,15 @@ type Props = {
 
 /**
  * Canvas layer that draws a marker for every open thread at its scene position
- * and hosts the popover for the active thread or the pin being placed. It only
- * swallows pointer events while the user is placing a pin — otherwise clicks
- * fall through to Excalidraw as usual.
+ * and hosts the popover for the active thread or the pin being placed. Pins can
+ * be dragged to re-anchor their thread. The layer only swallows pointer events
+ * while the user is placing a pin — otherwise clicks fall through to Excalidraw
+ * as usual.
  */
 export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
   const overlayRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
+  const [drag, setDrag] = useState<DragState | null>(null);
 
   const {
     activeThreadId,
@@ -82,6 +105,74 @@ export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
     [isPlacing, placeDraftAt, viewport],
   );
 
+  // Every press on a pin goes through the drag handlers: one that stays put
+  // opens the thread, one that travels moves the pin.
+  const startDrag = useCallback(
+    (
+      event: React.PointerEvent<HTMLButtonElement>,
+      pin: { id: string; x: number; y: number },
+      movable: boolean,
+    ) => {
+      if (event.button !== 0 || isPlacing) return;
+      event.stopPropagation();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setDrag({
+        threadId: pin.id,
+        pointerId: event.pointerId,
+        originClient: { x: event.clientX, y: event.clientY },
+        originScene: { x: pin.x, y: pin.y },
+        scene: { x: pin.x, y: pin.y },
+        movable,
+        moved: false,
+      });
+    },
+    [isPlacing],
+  );
+
+  const continueDrag = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>) => {
+      setDrag((current) => {
+        if (!current || current.pointerId !== event.pointerId) return current;
+        if (!current.movable) return current;
+        const dx = event.clientX - current.originClient.x;
+        const dy = event.clientY - current.originClient.y;
+        if (!current.moved && Math.hypot(dx, dy) < DRAG_THRESHOLD_PX) {
+          return current;
+        }
+        return {
+          ...current,
+          moved: true,
+          // Client-pixel deltas convert to scene units by zoom alone, so a drag
+          // tracks the cursor exactly at any zoom level.
+          scene: {
+            x: current.originScene.x + dx / viewport.zoom,
+            y: current.originScene.y + dy / viewport.zoom,
+          },
+        };
+      });
+    },
+    [viewport.zoom],
+  );
+
+  const endDrag = useCallback(
+    (event: React.PointerEvent<HTMLButtonElement>, threadId: string) => {
+      event.stopPropagation();
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      const finished = drag?.pointerId === event.pointerId ? drag : null;
+      setDrag(null);
+      if (!finished) return;
+      if (finished.moved) {
+        void comments.moveThread(finished.threadId, finished.scene);
+        return;
+      }
+      // A press that never crossed the threshold is a click on the pin.
+      setActiveThreadId(activeThreadId === threadId ? null : threadId);
+    },
+    [activeThreadId, comments, drag, setActiveThreadId],
+  );
+
   if (!canComment) return null;
 
   // Keep a popover inside the canvas instead of letting it hang off the edge.
@@ -102,6 +193,11 @@ export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
   const activeThread =
     visibleThreads.find((thread) => thread.root.id === activeThreadId) ?? null;
 
+  // A pin being dragged follows the pointer; the stored position only catches
+  // up once the move has been saved.
+  const pinScene = (pin: { id: string; x: number; y: number }): Point =>
+    drag?.threadId === pin.id && drag.moved ? drag.scene : { x: pin.x, y: pin.y };
+
   return (
     <div
       ref={overlayRef}
@@ -118,24 +214,34 @@ export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
       ) : null}
 
       {visibleThreads.map((thread) => {
-        const point = sceneToCanvasPoint(
-          { x: thread.root.x, y: thread.root.y },
-          viewport,
-        );
+        const point = sceneToCanvasPoint(pinScene(thread.root), viewport);
         const isActive = thread.root.id === activeThreadId;
         const isResolved = thread.root.resolvedAt !== null;
+        const movable = comments.canMove(thread.root);
+        const isDragging = drag?.threadId === thread.root.id && drag.moved;
         return (
           <button
             key={thread.root.id}
             type="button"
             style={{ left: point.x, top: point.y }}
-            onClick={(event) => {
-              event.stopPropagation();
-              setActiveThreadId(isActive ? null : thread.root.id);
-            }}
-            title={`${thread.root.authorName}: ${thread.root.body.slice(0, 80)}`}
+            onPointerDown={(event) => startDrag(event, thread.root, movable)}
+            onPointerMove={continueDrag}
+            onPointerUp={(event) => endDrag(event, thread.root.id)}
+            onPointerCancel={() => setDrag(null)}
+            onClick={(event) => event.stopPropagation()}
+            title={`${thread.root.authorName}: ${thread.root.body.slice(0, 80)}${
+              movable ? " · drag to move" : ""
+            }`}
             className={clsx(
-              "pointer-events-auto absolute flex h-7 min-w-7 -translate-y-full items-center gap-1 rounded-full rounded-bl-none border-2 border-black px-1.5 text-[11px] font-bold shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)] transition-transform duration-150 hover:-translate-y-[calc(100%+2px)]",
+              "pointer-events-auto absolute flex h-7 min-w-7 -translate-y-full touch-none items-center gap-1 rounded-full rounded-bl-none border-2 border-black px-1.5 text-[11px] font-bold shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)]",
+              // No transition while dragging: the pin has to sit under the
+              // cursor, not ease towards it.
+              isDragging
+                ? "cursor-grabbing"
+                : clsx(
+                    "transition-transform duration-150 hover:-translate-y-[calc(100%+2px)]",
+                    movable ? "cursor-grab" : "cursor-pointer",
+                  ),
               isResolved
                 ? "bg-neutral-200 text-neutral-600 dark:bg-neutral-700 dark:text-neutral-300"
                 : isActive
@@ -149,14 +255,11 @@ export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
         );
       })}
 
-      {activeThread ? (
+      {activeThread && !(drag?.moved ?? false) ? (
         <div
           onClick={(event) => event.stopPropagation()}
           style={popoverStyle(
-            sceneToCanvasPoint(
-              { x: activeThread.root.x, y: activeThread.root.y },
-              viewport,
-            ),
+            sceneToCanvasPoint(pinScene(activeThread.root), viewport),
           )}
           className="pointer-events-auto absolute z-[7] w-72 max-h-[60vh] overflow-y-auto rounded-xl border-2 border-black dark:border-neutral-600 bg-white dark:bg-neutral-900 p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]"
         >

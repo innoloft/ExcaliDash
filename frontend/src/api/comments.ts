@@ -65,6 +65,18 @@ export const setDrawingCommentResolved = async (
   return response.data;
 };
 
+export const moveDrawingComment = async (
+  drawingId: string,
+  commentId: string,
+  position: { x: number; y: number },
+): Promise<DrawingComment> => {
+  const response = await api.patch<DrawingComment>(
+    `/drawings/${drawingId}/comments/${commentId}`,
+    position,
+  );
+  return response.data;
+};
+
 export const deleteDrawingComment = async (
   drawingId: string,
   commentId: string,

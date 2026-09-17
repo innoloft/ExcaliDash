@@ -4,6 +4,7 @@ import type { DrawingRouteContext } from "./drawingRouteContext";
 import {
   broadcastCommentsChanged,
   canDeleteComment,
+  canMoveComment,
   canResolveComment,
   normalizeCoordinate,
   resolveCommentAuthor,
@@ -165,18 +166,47 @@ export const registerDrawingCommentRoutes = (
       if (comment.parentId !== null) {
         return res.status(400).json({
           error: "Validation error",
-          message: "Only a thread's first comment can be resolved",
+          message:
+            "Only a thread's first comment carries the pin and resolved state",
         });
       }
 
+      // Resolving and moving are independent edits with their own permission
+      // rules, so a request may carry either or both.
       const resolved = req.body?.resolved;
-      if (typeof resolved !== "boolean") {
+      const wantsResolve = resolved !== undefined;
+      const wantsMove = req.body?.x !== undefined || req.body?.y !== undefined;
+
+      if (!wantsResolve && !wantsMove) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "Nothing to update",
+        });
+      }
+      if (wantsResolve && typeof resolved !== "boolean") {
         return res.status(400).json({
           error: "Validation error",
           message: "resolved must be a boolean",
         });
       }
+
+      let position: { x: number; y: number } | null = null;
+      if (wantsMove) {
+        // Both coordinates travel together: a half-move would silently keep the
+        // pin's old axis and land it somewhere nobody picked.
+        const x = normalizeCoordinate(req.body?.x);
+        const y = normalizeCoordinate(req.body?.y);
+        if (x === null || y === null) {
+          return res.status(400).json({
+            error: "Validation error",
+            message: "Moving a comment pin needs finite x and y scene coordinates",
+          });
+        }
+        position = { x, y };
+      }
+
       if (
+        wantsResolve &&
         !canResolveComment({
           access: granted.access,
           comment,
@@ -188,16 +218,34 @@ export const registerDrawingCommentRoutes = (
           message: "You cannot resolve this comment",
         });
       }
+      if (
+        position &&
+        !canMoveComment({
+          access: granted.access,
+          comment,
+          principal: granted.principal,
+        })
+      ) {
+        return res.status(403).json({
+          error: "Forbidden",
+          message: "You cannot move this comment",
+        });
+      }
 
       const updated = await prisma.drawingComment.update({
         where: { id: commentId },
         data: {
-          resolvedAt: resolved ? new Date() : null,
-          resolvedByUserId: resolved
-            ? granted.principal?.kind === "user"
-              ? granted.principal.userId
-              : null
-            : null,
+          ...(wantsResolve
+            ? {
+                resolvedAt: resolved ? new Date() : null,
+                resolvedByUserId: resolved
+                  ? granted.principal?.kind === "user"
+                    ? granted.principal.userId
+                    : null
+                  : null,
+              }
+            : {}),
+          ...(position ?? {}),
         },
       });
 

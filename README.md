@@ -46,7 +46,7 @@ Automatically retain recent drawing snapshots, preview past versions from the ed
 <details>
 <summary>Pinned comments on drawings</summary>
 
-Drop a comment pin anywhere on a canvas, reply in a thread, and resolve it when it is handled. Pins stay anchored to their spot while you pan and zoom, appear live for everyone in the drawing, and are open to anyone who can view it — including share-link recipients. The drawing's owner can moderate any thread; everyone else can remove their own comments.
+Drop a comment pin anywhere on a canvas, reply in a thread, and resolve it when it is handled. Pins stay anchored to their spot while you pan and zoom, appear live for everyone in the drawing, and are open to anyone who can view it — including share-link recipients. Drag a pin to re-anchor it if the drawing moved on underneath it. The drawing's owner can moderate any thread; everyone else can remove and move their own comments.
 
 </details>
 

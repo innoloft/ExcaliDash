@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { MutableRefObject } from "react";
 import { toast } from "sonner";
 import * as api from "../../api";
@@ -36,11 +36,14 @@ export type EditorCommentsState = {
   placeDraftAt: (scenePoint: Point) => void;
   submitDraft: (body: string) => Promise<boolean>;
   submitReply: (threadId: string, body: string) => Promise<boolean>;
+  /** Re-anchor a thread's pin to a new scene position. */
+  moveThread: (threadId: string, scenePoint: Point) => Promise<void>;
   toggleResolved: (thread: api.CommentThread) => Promise<void>;
   deleteComment: (comment: api.DrawingComment) => Promise<void>;
   setActiveThreadId: (threadId: string | null) => void;
   setShowResolved: (show: boolean) => void;
   canDelete: (comment: api.DrawingComment) => boolean;
+  canMove: (comment: api.DrawingComment) => boolean;
   canResolve: (thread: api.CommentThread) => boolean;
 };
 
@@ -69,6 +72,14 @@ export const useEditorComments = ({
   const [showResolved, setShowResolved] = useState(false);
   const [draftPoint, setDraftPoint] = useState<Point | null>(null);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+
+  // A drag commits from a pointer handler, which needs the pin's pre-drag
+  // position to roll back to; mirroring the list into a ref leaves `moveThread`
+  // stable across the re-renders a drag produces.
+  const commentsRef = useRef<api.DrawingComment[]>(comments);
+  useEffect(() => {
+    commentsRef.current = comments;
+  }, [comments]);
 
   // The overlay only needs live scroll/zoom tracking while it has something
   // to draw or a pin to place.
@@ -170,6 +181,44 @@ export const useEditorComments = ({
     [drawingId],
   );
 
+  const moveThread = useCallback(
+    async (threadId: string, scenePoint: Point) => {
+      if (!drawingId) return;
+      const pin = commentsRef.current.find(
+        (comment) => comment.id === threadId,
+      );
+      if (!pin) return;
+      if (pin.x === scenePoint.x && pin.y === scenePoint.y) return;
+
+      // Show the pin at its new spot immediately — a drag that snapped back
+      // for a round trip would feel broken — and undo that if the write fails.
+      const applyPosition = (position: Point) =>
+        setComments((previous) =>
+          previous.map((comment) =>
+            comment.id === threadId
+              ? { ...comment, x: position.x, y: position.y }
+              : comment,
+          ),
+        );
+      applyPosition(scenePoint);
+      try {
+        const updated = await api.moveDrawingComment(drawingId, threadId, {
+          x: scenePoint.x,
+          y: scenePoint.y,
+        });
+        setComments((previous) =>
+          previous.map((comment) =>
+            comment.id === updated.id ? updated : comment,
+          ),
+        );
+      } catch {
+        applyPosition({ x: pin.x, y: pin.y });
+        toast.error("Could not move this comment");
+      }
+    },
+    [drawingId],
+  );
+
   const toggleResolved = useCallback(
     async (thread: api.CommentThread) => {
       if (!drawingId) return;
@@ -219,6 +268,12 @@ export const useEditorComments = ({
     [currentUserId, isOwner],
   );
 
+  const canMove = useCallback(
+    (comment: api.DrawingComment) =>
+      isOwner || isSameAuthor(comment, currentUserId),
+    [currentUserId, isOwner],
+  );
+
   const canResolve = useCallback(
     (thread: api.CommentThread) =>
       canEdit || isSameAuthor(thread.root, currentUserId),
@@ -247,11 +302,13 @@ export const useEditorComments = ({
     placeDraftAt,
     submitDraft,
     submitReply,
+    moveThread,
     toggleResolved,
     deleteComment,
     setActiveThreadId,
     setShowResolved,
     canDelete,
+    canMove,
     canResolve,
   };
 };

@@ -14,6 +14,7 @@ vi.mock("../../api", async () => {
     createDrawingComment: vi.fn(),
     replyToDrawingComment: vi.fn(),
     setDrawingCommentResolved: vi.fn(),
+    moveDrawingComment: vi.fn(),
     deleteDrawingComment: vi.fn(),
     groupCommentThreads: comments.groupCommentThreads,
   };
@@ -55,6 +56,7 @@ const renderComments = (
 describe("useEditorComments", () => {
   const getComments = vi.mocked(api.getDrawingComments);
   const createComment = vi.mocked(api.createDrawingComment);
+  const moveComment = vi.mocked(api.moveDrawingComment);
 
   beforeEach(() => {
     getComments.mockResolvedValue([]);
@@ -133,6 +135,56 @@ describe("useEditorComments", () => {
     expect(result.current.canResolve(theirs)).toBe(false);
   });
 
+  it("shows a moved pin immediately and keeps the saved position", async () => {
+    getComments.mockResolvedValue([makeComment("root-1", { x: 10, y: 10 })]);
+    moveComment.mockImplementation(async (_drawingId, commentId, position) =>
+      makeComment(commentId, { ...position, updatedAt: "2026-09-17T12:00:00.000Z" }),
+    );
+
+    const { result } = renderComments();
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.moveThread("root-1", { x: 55, y: -12 });
+    });
+
+    expect(moveComment).toHaveBeenCalledWith("drawing-1", "root-1", {
+      x: 55,
+      y: -12,
+    });
+    expect(result.current.threads[0].root).toMatchObject({ x: 55, y: -12 });
+  });
+
+  it("puts a pin back where it was when the move fails", async () => {
+    getComments.mockResolvedValue([makeComment("root-1", { x: 10, y: 10 })]);
+    moveComment.mockRejectedValue(new Error("offline"));
+
+    const { result } = renderComments();
+    await waitFor(() => expect(result.current.threads).toHaveLength(1));
+
+    await act(async () => {
+      await result.current.moveThread("root-1", { x: 400, y: 400 });
+    });
+
+    expect(result.current.threads[0].root).toMatchObject({ x: 10, y: 10 });
+  });
+
+  it("only lets the author or the drawing owner move a pin", async () => {
+    getComments.mockResolvedValue([
+      makeComment("mine"),
+      makeComment("theirs", { authorUserId: "user-2", authorName: "Other" }),
+    ]);
+
+    const { result } = renderComments("edit");
+    await waitFor(() => expect(result.current.threads).toHaveLength(2));
+
+    const [mine, theirs] = result.current.threads;
+    expect(result.current.canMove(mine.root)).toBe(true);
+    // Edit access on the drawing is not licence to re-anchor someone else's
+    // comment — that would change what it points at.
+    expect(result.current.canMove(theirs.root)).toBe(false);
+  });
+
   it("lets the drawing owner moderate every thread", async () => {
     getComments.mockResolvedValue([
       makeComment("theirs", { authorUserId: "user-2", authorName: "Other" }),
@@ -141,5 +193,6 @@ describe("useEditorComments", () => {
     const { result } = renderComments("owner");
     await waitFor(() => expect(result.current.threads).toHaveLength(1));
     expect(result.current.canDelete(result.current.threads[0].root)).toBe(true);
+    expect(result.current.canMove(result.current.threads[0].root)).toBe(true);
   });
 });
