@@ -1,0 +1,106 @@
+# ExcaliDash production deployment — excalidash.loftos.io
+#
+#   docker compose build --pull && docker compose up -d
+#
+# Images are built from this checkout of github.com/innoloft/ExcaliDash, not
+# pulled from Docker Hub — the upstream zimengxiong/* images do not carry our
+# fork's changes. The build contexts are relative, so this file has to stay
+# inside the repo clone.
+#
+# Database: external PostgreSQL (configured in .env).
+# Reverse proxy (Traefik/nginx on the host) terminates TLS for
+# excalidash.loftos.io and forwards to 127.0.0.1:6767.
+
+services:
+  backend:
+    image: excalidash-backend:innoloft
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: excalidash-backend
+    # PID 1 that reaps zombies and forwards SIGTERM so graceful shutdown runs.
+    init: true
+    environment:
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_URL=${DATABASE_URL}
+      - PORT=8000
+      - NODE_ENV=production
+
+      # Public origin users reach. Drives CORS and secure-cookie behaviour.
+      - FRONTEND_URL=https://excalidash.loftos.io
+      # Two X-Forwarded-For hops: host reverse proxy -> frontend nginx -> backend.
+      # Use 1 if you publish the frontend container straight to the internet.
+      - TRUST_PROXY=2
+      # Set false only if your proxy strips X-Forwarded-Proto and you hit redirect loops.
+      - ENFORCE_HTTPS_REDIRECT=true
+
+      - JWT_SECRET=${JWT_SECRET}
+      - CSRF_SECRET=${CSRF_SECRET}
+
+      # --- Google login (OIDC), no local passwords ---
+      - AUTH_MODE=oidc_enforced
+      - OIDC_PROVIDER_NAME=Google
+      - OIDC_ISSUER_URL=https://accounts.google.com
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - OIDC_REDIRECT_URI=https://excalidash.loftos.io/api/auth/oidc/callback
+      - OIDC_SCOPES=openid profile email
+      - OIDC_REQUIRE_EMAIL_VERIFIED=true
+      # First account to log in becomes ADMIN — log in yourself immediately
+      # after the first start. See README.md > "Lock down who can log in".
+      - OIDC_FIRST_USER_ADMIN=true
+      - OIDC_JIT_PROVISIONING=${OIDC_JIT_PROVISIONING:-true}
+    volumes:
+      # Holds generated secrets and uploaded image files.
+      - backend-data:/app/prisma
+      - backend-uploads:/app/uploads
+    networks:
+      - excalidash-network
+    restart: unless-stopped
+    healthcheck:
+      # IPv4 loopback explicitly, to avoid IPv6 localhost resolution issues.
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:8000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    image: excalidash-frontend:innoloft
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_APP_VERSION: "0.6.0"
+        VITE_APP_BUILD_LABEL: "innoloft"
+    container_name: excalidash-frontend
+    # Bound to loopback: the host reverse proxy is the only way in.
+    ports:
+      - "127.0.0.1:6767:80"
+    environment:
+      - BACKEND_URL=backend:8000
+    depends_on:
+      - backend
+    networks:
+      - excalidash-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  excalidash-network:
+    driver: bridge
+
+volumes:
+  backend-data:
+  backend-uploads:
