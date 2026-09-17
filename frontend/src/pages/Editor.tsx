@@ -23,6 +23,7 @@ import { useEditorBroadcast } from "./editor/useEditorBroadcast";
 import { useEditorFileUploads } from "./editor/useEditorFileUploads";
 import { useEditorSceneApi } from "./editor/useEditorSceneApi";
 import { useEditorGridStep } from "./editor/useEditorGridStep";
+import { useCanvasScrollToZoom } from "./editor/useCanvasScrollToZoom";
 import { DEFAULT_GRID_STEP } from "../components/GridStepSelector";
 
 export const Editor: React.FC = () => {
@@ -50,6 +51,7 @@ const ExcalidrawEditor: React.FC = () => {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [langCode, setLangCode] = usePreference("language", getInitialLangCode());
   const [gridStep, setGridStep] = usePreference("gridStep", DEFAULT_GRID_STEP);
+  const [scrollToZoom] = usePreference("scrollToZoom", false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const previewBackup = useRef<{
     elements: readonly any[];
@@ -128,7 +130,6 @@ const ExcalidrawEditor: React.FC = () => {
       me,
       isReady,
       excalidrawAPI,
-      editorContainerRef,
       lastSyncedFilesRef,
       lastSyncedElementOrderSigRef,
       latestElementsRef,
@@ -164,6 +165,7 @@ const ExcalidrawEditor: React.FC = () => {
   });
   useLibraryImportFromUrl({ excalidrawAPIRef: excalidrawAPI, isReady, user });
   useEditorGridStep({ excalidrawAPI, isReady, gridStep });
+  useCanvasScrollToZoom({ containerRef: editorContainerRef, enabled: scrollToZoom });
   const persistenceRefs = React.useMemo(
     () => ({
       currentDrawingVersion: currentDrawingVersionRef,

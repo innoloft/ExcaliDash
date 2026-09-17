@@ -56,6 +56,8 @@ export interface UserPreferences {
   dashboardSortDirection?: SortDirection;
   language?: string;
   gridStep?: number;
+  /** Wheel over the canvas zooms instead of panning (Excalidraw's default). */
+  scrollToZoom?: boolean;
 }
 
 export interface ApiKeyMetadata {

@@ -8,6 +8,7 @@ import { User, Save, X } from 'lucide-react';
 import { USER_KEY } from '../utils/impersonation';
 import { displayFontFamily } from "../utils/displayFont";
 import { ApiKeysCard } from "./profile/ApiKeysCard";
+import { EditorPreferencesCard } from "./profile/EditorPreferencesCard";
 import { PasswordCard } from "./profile/PasswordCard";
 
 export const Profile: React.FC = () => {
@@ -308,6 +309,8 @@ export const Profile: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                <EditorPreferencesCard />
 
                 <ApiKeysCard disabled={mustResetPassword} onSuccess={setSuccess} />
 

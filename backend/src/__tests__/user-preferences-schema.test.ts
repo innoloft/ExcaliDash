@@ -9,8 +9,25 @@ describe("userPreferencesSchema", () => {
       dashboardSortDirection: "asc",
       language: "fr-FR",
       gridStep: 8,
+      scrollToZoom: true,
     });
     expect(parsed.success).toBe(true);
+  });
+
+  it("accepts a scrollToZoom-only partial update", () => {
+    const parsed = userPreferencesSchema
+      .partial()
+      .safeParse({ scrollToZoom: false });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.scrollToZoom).toBe(false);
+    }
+  });
+
+  it("rejects a non-boolean scrollToZoom", () => {
+    expect(
+      userPreferencesSchema.partial().safeParse({ scrollToZoom: "yes" }).success,
+    ).toBe(false);
   });
 
   it("accepts a gridStep-only partial update", () => {

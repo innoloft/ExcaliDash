@@ -3,6 +3,7 @@ import type React from "react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Profile } from "./Profile";
+import { PreferencesProvider } from "../context/PreferencesContext";
 import * as api from "../api";
 
 const { mockLogout, mockAuthUser } = vi.hoisted(() => ({
@@ -33,6 +34,8 @@ vi.mock("../api", () => ({
   createCollection: vi.fn(),
   updateCollection: vi.fn(),
   deleteCollection: vi.fn(),
+  getUserPreferences: vi.fn(),
+  updateUserPreferences: vi.fn(),
   listApiKeys: vi.fn(),
   createApiKey: vi.fn(),
   revokeApiKey: vi.fn(),
@@ -54,6 +57,7 @@ describe("Profile API keys", () => {
     vi.clearAllMocks();
     mockAuthUser.mockReturnValue({ id: "user-1", email: "user@example.com", name: "User One" });
     vi.mocked(api.getCollections).mockResolvedValue([]);
+    vi.mocked(api.getUserPreferences).mockResolvedValue({});
     vi.mocked(api.listApiKeys).mockResolvedValue([existingApiKey]);
     vi.mocked(api.createApiKey).mockImplementation(async (name, scopes) => ({
       apiKey: {
@@ -75,7 +79,9 @@ describe("Profile API keys", () => {
   it("lists, creates, copies, and revokes API keys", async () => {
     render(
       <MemoryRouter>
-        <Profile />
+        <PreferencesProvider>
+          <Profile />
+        </PreferencesProvider>
       </MemoryRouter>
     );
 
@@ -125,7 +131,9 @@ describe("Profile API keys", () => {
 
     render(
       <MemoryRouter>
-        <Profile />
+        <PreferencesProvider>
+          <Profile />
+        </PreferencesProvider>
       </MemoryRouter>
     );
 
@@ -145,7 +153,9 @@ describe("Profile API keys", () => {
 
     render(
       <MemoryRouter>
-        <Profile />
+        <PreferencesProvider>
+          <Profile />
+        </PreferencesProvider>
       </MemoryRouter>
     );
 
@@ -165,7 +175,9 @@ describe("Profile API keys", () => {
   it("submits and displays custom API key scopes", async () => {
     render(
       <MemoryRouter>
-        <Profile />
+        <PreferencesProvider>
+          <Profile />
+        </PreferencesProvider>
       </MemoryRouter>
     );
 
@@ -187,7 +199,9 @@ describe("Profile API keys", () => {
   it("disables API key creation and shows validation when no scopes are selected", async () => {
     render(
       <MemoryRouter>
-        <Profile />
+        <PreferencesProvider>
+          <Profile />
+        </PreferencesProvider>
       </MemoryRouter>
     );
 
@@ -221,7 +235,9 @@ describe("Profile API keys", () => {
 
     render(
       <MemoryRouter>
-        <Profile />
+        <PreferencesProvider>
+          <Profile />
+        </PreferencesProvider>
       </MemoryRouter>
     );
 

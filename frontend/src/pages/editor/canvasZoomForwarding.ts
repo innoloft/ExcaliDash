@@ -1,8 +1,9 @@
 /**
- * Excalidraw zooms on ctrl/cmd+wheel and pans on plain wheel. This project
- * inverts that on the canvas so a plain wheel zooms: intercept plain wheel
- * events over the canvas (not the editor UI chrome) and re-dispatch them as
- * synthetic ctrl+wheel. Returns a cleanup that detaches the listener.
+ * Excalidraw zooms on ctrl/cmd+wheel and pans on plain wheel. Users who prefer
+ * the inverted mapping can opt in via the `scrollToZoom` preference, which
+ * attaches this listener: plain wheel events over the canvas (not the editor
+ * UI chrome) are intercepted and re-dispatched as synthetic ctrl+wheel.
+ * Returns a cleanup that detaches the listener.
  */
 export const attachCanvasZoomForwarding = (
   container: HTMLElement | null,

@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { MutableRefObject, RefObject } from "react";
+import type { MutableRefObject } from "react";
 import { io, type Socket } from "socket.io-client";
 import { toast } from "sonner";
 import type { UserIdentity } from "../../utils/identity";
 import { filesNeedRehydration, rehydrateFilesFromUrls } from "../../utils/rehydrateFiles";
 import { buildRemoteSceneUpdate } from "./shared";
-import { attachCanvasZoomForwarding } from "./canvasZoomForwarding";
 
 interface Peer extends UserIdentity {
   isActive: boolean;
@@ -16,7 +15,6 @@ type UseEditorCollaborationInput = {
   me: UserIdentity;
   isReady: boolean;
   excalidrawAPI: MutableRefObject<any>;
-  editorContainerRef: RefObject<HTMLDivElement>;
   lastSyncedFilesRef: MutableRefObject<Record<string, any>>;
   lastSyncedElementOrderSigRef: MutableRefObject<string>;
   latestElementsRef: MutableRefObject<readonly any[]>;
@@ -40,7 +38,6 @@ export const useEditorCollaboration = ({
   me,
   isReady,
   excalidrawAPI,
-  editorContainerRef,
   lastSyncedFilesRef,
   lastSyncedElementOrderSigRef,
   latestElementsRef,
@@ -306,11 +303,7 @@ export const useEditorCollaboration = ({
     window.addEventListener("blur", onBlur);
     document.addEventListener("mouseenter", onMouseEnter);
     document.addEventListener("mouseleave", onMouseLeave);
-    const detachCanvasZoom = attachCanvasZoomForwarding(
-      editorContainerRef.current,
-    );
     return () => {
-      detachCanvasZoom();
       window.removeEventListener("focus", onFocus);
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("mouseenter", onMouseEnter);
@@ -337,8 +330,7 @@ export const useEditorCollaboration = ({
     me,
     isReady,
     excalidrawAPI,
-    editorContainerRef,
-    lastSyncedFilesRef,
+      lastSyncedFilesRef,
     lastSyncedElementOrderSigRef,
     latestElementsRef,
     latestFilesRef,
