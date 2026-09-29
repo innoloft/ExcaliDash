@@ -6,7 +6,6 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { usePreference } from "../context/PreferencesContext";
 import { useEditorChrome } from "./editor/useEditorChrome";
-import { useEditorAutoHide } from "./editor/useEditorAutoHide";
 import { useEditorIdentity } from "./editor/useEditorIdentity";
 import { EditorDialogs } from "./editor/EditorDialogs";
 import { EditorView } from "./editor/EditorView";
@@ -47,11 +46,16 @@ const ExcalidrawEditor: React.FC = () => {
   const [isSceneLoading, setIsSceneLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSavingOnLeave, setIsSavingOnLeave] = useState(false);
-  const { autoHideEnabled, setAutoHideEnabled } = useEditorAutoHide(id);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [langCode, setLangCode] = usePreference("language", getInitialLangCode());
   const [gridStep, setGridStep] = usePreference("gridStep", DEFAULT_GRID_STEP);
   const [scrollToZoom] = usePreference("scrollToZoom", false);
+  const [alwaysShowHeader, setAlwaysShowHeader] = usePreference("alwaysShowHeader", true);
+  const autoHideEnabled = !alwaysShowHeader;
+  const setAutoHideEnabled = useCallback(
+    (enabled: boolean) => setAlwaysShowHeader(!enabled),
+    [setAlwaysShowHeader],
+  );
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const previewBackup = useRef<{
     elements: readonly any[];

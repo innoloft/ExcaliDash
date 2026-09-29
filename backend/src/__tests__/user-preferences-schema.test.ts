@@ -10,6 +10,7 @@ describe("userPreferencesSchema", () => {
       language: "fr-FR",
       gridStep: 8,
       scrollToZoom: true,
+      alwaysShowHeader: false,
     });
     expect(parsed.success).toBe(true);
   });
@@ -27,6 +28,22 @@ describe("userPreferencesSchema", () => {
   it("rejects a non-boolean scrollToZoom", () => {
     expect(
       userPreferencesSchema.partial().safeParse({ scrollToZoom: "yes" }).success,
+    ).toBe(false);
+  });
+
+  it("accepts an alwaysShowHeader-only partial update", () => {
+    const parsed = userPreferencesSchema
+      .partial()
+      .safeParse({ alwaysShowHeader: false });
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.alwaysShowHeader).toBe(false);
+    }
+  });
+
+  it("rejects a non-boolean alwaysShowHeader", () => {
+    expect(
+      userPreferencesSchema.partial().safeParse({ alwaysShowHeader: "yes" }).success,
     ).toBe(false);
   });
 

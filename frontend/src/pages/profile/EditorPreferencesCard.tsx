@@ -8,6 +8,7 @@ import { usePreference } from "../../context/PreferencesContext";
  */
 export const EditorPreferencesCard: React.FC = () => {
   const [scrollToZoom, setScrollToZoom] = usePreference("scrollToZoom", false);
+  const [alwaysShowHeader, setAlwaysShowHeader] = usePreference("alwaysShowHeader", true);
 
   return (
     <div className="bg-white dark:bg-neutral-900 border-2 border-black dark:border-neutral-700 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,0.2)] p-6">
@@ -18,28 +19,53 @@ export const EditorPreferencesCard: React.FC = () => {
         <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Editor</h2>
       </div>
 
-      <label
-        htmlFor="scrollToZoom"
-        className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-neutral-800 border-2 border-slate-200 dark:border-neutral-700 rounded-xl cursor-pointer"
-      >
-        <input
-          id="scrollToZoom"
-          type="checkbox"
-          checked={scrollToZoom}
-          onChange={(event) => setScrollToZoom(event.target.checked)}
-          className="mt-1 h-4 w-4 accent-indigo-600"
-        />
-        <span>
-          <span className="block font-bold text-slate-900 dark:text-white">
-            Scroll wheel zooms the canvas
+      <div className="space-y-3">
+        <label
+          htmlFor="alwaysShowHeader"
+          className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-neutral-800 border-2 border-slate-200 dark:border-neutral-700 rounded-xl cursor-pointer"
+        >
+          <input
+            id="alwaysShowHeader"
+            type="checkbox"
+            checked={alwaysShowHeader}
+            onChange={(event) => setAlwaysShowHeader(event.target.checked)}
+            className="mt-1 h-4 w-4 accent-indigo-600"
+          />
+          <span>
+            <span className="block font-bold text-slate-900 dark:text-white">
+              Always show the header bar
+            </span>
+            <span className="block text-sm text-slate-600 dark:text-neutral-400 font-medium mt-1">
+              {alwaysShowHeader
+                ? "The header bar stays visible above the canvas. Turn this off to hide it until you move the pointer to the top edge."
+                : "The header bar hides after a few seconds and reappears when you move the pointer to the top edge."}
+            </span>
           </span>
-          <span className="block text-sm text-slate-600 dark:text-neutral-400 font-medium mt-1">
-            {scrollToZoom
-              ? "Scrolling zooms in and out. Turn this off to scroll the canvas instead."
-              : "Scrolling moves the canvas, Shift+scroll moves it sideways and Cmd/Ctrl+scroll zooms, like Excalidraw."}
+        </label>
+
+        <label
+          htmlFor="scrollToZoom"
+          className="flex items-start gap-3 p-4 bg-slate-50 dark:bg-neutral-800 border-2 border-slate-200 dark:border-neutral-700 rounded-xl cursor-pointer"
+        >
+          <input
+            id="scrollToZoom"
+            type="checkbox"
+            checked={scrollToZoom}
+            onChange={(event) => setScrollToZoom(event.target.checked)}
+            className="mt-1 h-4 w-4 accent-indigo-600"
+          />
+          <span>
+            <span className="block font-bold text-slate-900 dark:text-white">
+              Scroll wheel zooms the canvas
+            </span>
+            <span className="block text-sm text-slate-600 dark:text-neutral-400 font-medium mt-1">
+              {scrollToZoom
+                ? "Scrolling zooms in and out. Turn this off to scroll the canvas instead."
+                : "Scrolling moves the canvas, Shift+scroll moves it sideways and Cmd/Ctrl+scroll zooms, like Excalidraw."}
+            </span>
           </span>
-        </span>
-      </label>
+        </label>
+      </div>
     </div>
   );
 };

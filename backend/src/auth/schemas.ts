@@ -141,4 +141,5 @@ export const userPreferencesSchema = z.object({
   language: z.string().trim().min(1).max(35).optional(),
   gridStep: z.number().int().min(1).max(100).optional(),
   scrollToZoom: z.boolean().optional(),
+  alwaysShowHeader: z.boolean().optional(),
 }).strict();

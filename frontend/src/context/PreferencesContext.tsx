@@ -24,6 +24,7 @@ const KNOWN_KEYS: PreferenceKey[] = [
   'language',
   'gridStep',
   'scrollToZoom',
+  'alwaysShowHeader',
 ];
 
 const pickKnown = (source: Partial<Preferences>): Preferences => {

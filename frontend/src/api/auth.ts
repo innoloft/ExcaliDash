@@ -58,6 +58,8 @@ export interface UserPreferences {
   gridStep?: number;
   /** Wheel over the canvas zooms instead of panning (Excalidraw's default). */
   scrollToZoom?: boolean;
+  /** Keep the editor header bar pinned instead of auto-hiding it. */
+  alwaysShowHeader?: boolean;
 }
 
 export interface ApiKeyMetadata {
