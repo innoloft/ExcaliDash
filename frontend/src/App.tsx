@@ -17,6 +17,7 @@ const Register = lazy(() => import('./pages/Register').then(m => ({ default: m.R
 const PasswordResetRequest = lazy(() => import('./pages/PasswordResetRequest').then(m => ({ default: m.PasswordResetRequest })));
 const PasswordResetConfirm = lazy(() => import('./pages/PasswordResetConfirm').then(m => ({ default: m.PasswordResetConfirm })));
 const AuthSetupChoice = lazy(() => import('./pages/AuthSetupChoice').then(m => ({ default: m.AuthSetupChoice })));
+const OAuthAuthorize = lazy(() => import('./pages/OAuthAuthorize').then(m => ({ default: m.OAuthAuthorize })));
 
 const PageLoader = () => (
   <div className="min-h-screen bg-slate-50 dark:bg-neutral-950 flex items-center justify-center">
@@ -87,6 +88,14 @@ function App() {
                   }
                 />
                 <Route path="/shared/:id" element={<Editor />} />
+                <Route
+                  path="/oauth/authorize"
+                  element={
+                    <ProtectedRoute>
+                      <OAuthAuthorize />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

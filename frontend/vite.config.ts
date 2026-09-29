@@ -53,6 +53,10 @@ export default defineConfig(({ command }) => {
           target: devBackendTarget,
           changeOrigin: true,
         },
+        "/.well-known/oauth-": {
+          target: devBackendTarget,
+          changeOrigin: true,
+        },
         "/socket.io": {
           target: devBackendTarget,
           changeOrigin: true,

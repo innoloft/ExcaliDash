@@ -320,12 +320,16 @@ Common flags:
 
 ExcaliDash serves a remote [MCP](https://modelcontextprotocol.io) endpoint at `<your ExcaliDash URL>/mcp` (Streamable HTTP). It lets AI assistants store `.excalidraw` files as drawings, optionally in a collection, and replace existing drawings.
 
-Authenticate with an API key from **Profile → API Keys** as a Bearer token. The tools can do exactly what the key's scopes allow:
+**Claude Desktop / claude.ai:** add a custom connector with the URL `https://excalidash.example.com/mcp` (on Team/Enterprise plans an owner adds it once for everyone). Each person then clicks **Connect**, signs in to ExcaliDash, and approves access. Behind the scenes this creates a non-expiring API key named "Claude (OAuth)" for them; revoking it under **Profile → API Keys** disconnects Claude.
+
+**Claude Code or other clients:** use the same OAuth flow, or pass an API key from **Profile → API Keys** directly:
 
 ```bash
 claude mcp add --transport http excalidash https://excalidash.example.com/mcp \
   --header "Authorization: Bearer exd_..."
 ```
+
+Either way, the tools can do exactly what the key's scopes allow. OAuth only accepts Claude's callback URLs and localhost (loopback) redirects.
 
 | Tool               | What it does                                                                                           |
 | ------------------ | ------------------------------------------------------------------------------------------------------ |

@@ -36,7 +36,10 @@ export const Login: React.FC = () => {
   const queryMustReset = searchParams.get('mustReset') === '1';
   const oidcErrorCode = searchParams.get('oidcError');
   const oidcErrorMessage = searchParams.get('oidcErrorMessage');
-  const oidcReturnTo = searchParams.get('returnTo') || '/';
+  const requestedReturnTo = searchParams.get('returnTo') || '/';
+  // Same-origin paths only, so returnTo can never become an open redirect.
+  const returnTo =
+    requestedReturnTo.startsWith('/') && !requestedReturnTo.startsWith('//') ? requestedReturnTo : '/';
   const mustReset = Boolean(user?.mustResetPassword) || queryMustReset;
   const passwordPolicy = getPasswordPolicy();
 
@@ -62,13 +65,13 @@ export const Login: React.FC = () => {
     }
     if (oidcEnforced && !mustReset) {
       if (!oidcErrorCode) {
-        api.startOidcSignIn(oidcReturnTo);
+        api.startOidcSignIn(returnTo);
       }
       return;
     }
     if (isAuthenticated) {
       if (mustReset) return;
-      navigate('/', { replace: true });
+      navigate(returnTo, { replace: true });
     }
   }, [
     authEnabled,
@@ -81,7 +84,7 @@ export const Login: React.FC = () => {
     navigate,
     oidcEnforced,
     oidcErrorCode,
-    oidcReturnTo,
+    returnTo,
   ]);
 
   if (authStatusError) {
@@ -101,7 +104,7 @@ export const Login: React.FC = () => {
         setPassword('');
         return;
       }
-      navigate('/');
+      navigate(returnTo);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to login';
       setError(message);
@@ -194,7 +197,7 @@ export const Login: React.FC = () => {
             <div>
               <button
                 type="button"
-                onClick={() => api.startOidcSignIn(oidcReturnTo)}
+                onClick={() => api.startOidcSignIn(returnTo)}
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Continue with {oidcProvider || 'OIDC'}

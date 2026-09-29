@@ -2,13 +2,24 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { ExcaliDashClient } from "./apiClient";
+import type { PrismaClient } from "../generated/client";
 import { MCP_PATH } from "./constants";
+import { registerOAuthAuthorizeTokenRoutes } from "./oauth/authorizeTokenRoutes";
+import {
+  protectedResourceMetadataUrl,
+  registerOAuthDiscoveryRoutes,
+} from "./oauth/discoveryRoutes";
+import { createOAuthSigner } from "./oauth/signing";
+import { resolvePublicBaseUrl } from "./publicUrl";
 import { registerTools } from "./tools";
 
 const SERVER_INFO = { name: "excalidash", version: "0.1.0" };
 
 type RegisterMcpRoutesDeps = {
+  prisma: PrismaClient;
   requireAuth: express.RequestHandler;
+  /** Signs OAuth client ids and authorization codes. */
+  jwtSecret: string;
   /** Public frontend URL (first FRONTEND_URL entry), for editor links. */
   publicAppUrl: string | null;
 };
@@ -16,12 +27,6 @@ type RegisterMcpRoutesDeps = {
 const readHeader = (req: express.Request, name: string): string | undefined => {
   const value = req.headers[name];
   return (Array.isArray(value) ? value[0] : value)?.trim() || undefined;
-};
-
-const resolveAppUrl = (req: express.Request, publicAppUrl: string | null): string => {
-  if (publicAppUrl) return publicAppUrl.replace(/\/+$/, "");
-  const proto = readHeader(req, "x-forwarded-proto")?.split(",")[0]?.trim() || req.protocol;
-  return `${proto}://${readHeader(req, "host") ?? "localhost"}`;
 };
 
 const jsonRpcError = (res: express.Response, status: number, message: string) =>
@@ -33,9 +38,15 @@ const jsonRpcError = (res: express.Response, status: number, message: string) =>
  * the caller's API key, so the tools are exactly as capable as the key.
  */
 export const registerMcpRoutes = (app: express.Express, deps: RegisterMcpRoutesDeps) => {
-  // Advertise Bearer auth on every 401, including requireAuth's own.
-  const challenge: express.RequestHandler = (_req, res, next) => {
-    res.setHeader("WWW-Authenticate", 'Bearer realm="excalidash"');
+  const signer = createOAuthSigner(deps.jwtSecret);
+  registerOAuthDiscoveryRoutes(app, { signer, publicAppUrl: deps.publicAppUrl });
+  registerOAuthAuthorizeTokenRoutes(app, { prisma: deps.prisma, requireAuth: deps.requireAuth, signer });
+
+  // Advertise Bearer auth on every 401, including requireAuth's own, and
+  // point OAuth clients (Claude connectors) at the discovery document.
+  const challenge: express.RequestHandler = (req, res, next) => {
+    const metadataUrl = protectedResourceMetadataUrl(resolvePublicBaseUrl(req, deps.publicAppUrl));
+    res.setHeader("WWW-Authenticate", `Bearer realm="excalidash", resource_metadata="${metadataUrl}"`);
     next();
   };
   app.post(MCP_PATH, challenge, deps.requireAuth, async (req, res) => {
@@ -56,7 +67,7 @@ export const registerMcpRoutes = (app: express.Express, deps: RegisterMcpRoutesD
     });
 
     const server = new McpServer(SERVER_INFO);
-    registerTools(server, api, resolveAppUrl(req, deps.publicAppUrl));
+    registerTools(server, api, resolvePublicBaseUrl(req, deps.publicAppUrl));
     const transport = new StreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
       enableJsonResponse: true,

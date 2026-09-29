@@ -5,3 +5,4 @@ export * from "./collections";
 export * from "./comments";
 export * from "./storage";
 export * from "./auth";
+export * from "./oauth";
