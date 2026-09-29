@@ -49,6 +49,10 @@ export default defineConfig(({ command }) => {
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, ""),
         },
+        "/mcp": {
+          target: devBackendTarget,
+          changeOrigin: true,
+        },
         "/socket.io": {
           target: devBackendTarget,
           changeOrigin: true,

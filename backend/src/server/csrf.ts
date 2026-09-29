@@ -12,6 +12,7 @@ import {
   getCsrfValidationClientIds,
 } from "../security/csrfClient";
 import { isNonBrowserApiKeyBearerRequest } from "../auth/apiKeys";
+import { MCP_PATH } from "../mcp/constants";
 
 const CSRF_CLIENT_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
@@ -155,6 +156,12 @@ export const registerCsrfProtection = ({
       return next();
     }
     if (isNonBrowserApiKeyBearerRequest(req)) {
+      return next();
+    }
+    // MCP clients call /mcp before they know they need a key. The route
+    // accepts only API keys, never cookie sessions, so a non-browser request
+    // there has no session to forge; let it through to get a proper 401.
+    if (req.method === "POST" && req.path === MCP_PATH && !req.headers.origin && !req.headers.referer) {
       return next();
     }
 

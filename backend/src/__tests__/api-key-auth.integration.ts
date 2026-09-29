@@ -1,6 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import bcrypt from "bcrypt";
+import { Server as SocketIoServer } from "socket.io";
 import { PrismaClient } from "../generated/client";
 import { generateApiKey, serializeApiKeyScopes } from "../auth/apiKeys";
 import { getTestPrisma, setupTestDb } from "./testUtils";
@@ -135,6 +136,33 @@ describe("API key authentication", () => {
       .send({ granteeUserId: "user-2", permission: "view" });
 
     expect(response.status).toBe(403);
+  });
+
+  it("tells open editors to reload when an API key replaces a drawing's scene", async () => {
+    const created = await request(app)
+      .post("/drawings")
+      .set("Authorization", `Bearer ${apiKeyToken}`)
+      .send({ name: "Replaced by automation", elements: [], appState: {} });
+    expect(created.status).toBe(200);
+
+    const toSpy = vi.spyOn(SocketIoServer.prototype, "to");
+    try {
+      const renamed = await request(app)
+        .put(`/drawings/${created.body.id}`)
+        .set("Authorization", `Bearer ${apiKeyToken}`)
+        .send({ name: "Renamed only" });
+      expect(renamed.status).toBe(200);
+      expect(toSpy).not.toHaveBeenCalled();
+
+      const replaced = await request(app)
+        .put(`/drawings/${created.body.id}`)
+        .set("Authorization", `Bearer ${apiKeyToken}`)
+        .send({ elements: [], appState: {}, preview: null });
+      expect(replaced.status).toBe(200);
+      expect(toSpy).toHaveBeenCalledWith(`drawing_${created.body.id}`);
+    } finally {
+      toSpy.mockRestore();
+    }
   });
 
   it("stores only hashed API keys and metadata", async () => {

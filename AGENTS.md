@@ -143,6 +143,7 @@ Understand runtime first, then touch code with local tests if requested.
 ## Repository map (high signal)
 
 - `backend/`: Express API, Prisma schema, auth, sockets, scripts, Docker runtime.
+  - `backend/src/mcp/`: remote MCP endpoint at `/mcp` (API-key auth; tools call the REST API over loopback). Proxied by `frontend/nginx.conf.template`.
 - `frontend/`: React UI, API client wiring, Vite config/build pipeline.
 - `e2e/`: Playwright tests and compose-based test runner.
 - `docker-compose.yml`: local compose setup for source builds.

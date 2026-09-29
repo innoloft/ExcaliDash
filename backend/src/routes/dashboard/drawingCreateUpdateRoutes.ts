@@ -37,6 +37,7 @@ export const registerDrawingCreateUpdateRoutes = (
     parseJsonField,
     getRequestPrincipal,
     respondWithAuthErrorIfPresent,
+    io,
   } = context;
 
   // Interning writes DrawingFile rows (and S3 blobs) before the scene
@@ -369,6 +370,12 @@ export const registerDrawingCreateUpdateRoutes = (
         return res.status(404).json({ error: "Drawing not found" });
       }
       invalidateDrawingsCache();
+      // API-key clients (e.g. the MCP server) replace scenes outside any
+      // editor session. Tell open editors to reload so their next save does
+      // not re-introduce the replaced elements.
+      if (isSceneUpdate && req.user?.authCredentialType === "apiKey") {
+        io?.to(`drawing_${id}`).emit("drawing-server-update", { drawingId: id });
+      }
 
       return res.json({
         ...updatedDrawing,
