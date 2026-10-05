@@ -7,9 +7,9 @@ import { renderHook, waitFor } from "./renderHook";
 // Only the network calls are faked; the real grouping helper stays in play so
 // the thread shapes under test are the ones the app actually renders.
 vi.mock("../src/api", async () => {
-  const comments = await vi.importActual<
-    typeof import("../src/api/comments")
-  >("../src/api/comments");
+  const comments = await vi.importActual<typeof import("../src/api/comments")>(
+    "../src/api/comments",
+  );
   return {
     getDrawingComments: vi.fn(),
     createDrawingComment: vi.fn(),
@@ -146,7 +146,10 @@ describe("useEditorComments", () => {
   it("shows a moved pin immediately and keeps the saved position", async () => {
     getComments.mockResolvedValue([makeComment("root-1", { x: 10, y: 10 })]);
     moveComment.mockImplementation(async (_drawingId, commentId, position) =>
-      makeComment(commentId, { ...position, updatedAt: "2026-09-17T12:00:00.000Z" }),
+      makeComment(commentId, {
+        ...position,
+        updatedAt: "2026-09-17T12:00:00.000Z",
+      }),
     );
 
     const { result } = await renderComments();

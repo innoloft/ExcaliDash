@@ -185,7 +185,10 @@ export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
         : anchor.x + PIN_OFFSET,
       top: Math.max(
         8,
-        Math.min(anchor.y + PIN_OFFSET, Math.max(8, size.height - POPOVER_MAX_HEIGHT)),
+        Math.min(
+          anchor.y + PIN_OFFSET,
+          Math.max(8, size.height - POPOVER_MAX_HEIGHT),
+        ),
       ),
     };
   };
@@ -196,7 +199,9 @@ export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
   // A pin being dragged follows the pointer; the stored position only catches
   // up once the move has been saved.
   const pinScene = (pin: { id: string; x: number; y: number }): Point =>
-    drag?.threadId === pin.id && drag.moved ? drag.scene : { x: pin.x, y: pin.y };
+    drag?.threadId === pin.id && drag.moved
+      ? drag.scene
+      : { x: pin.x, y: pin.y };
 
   return (
     <div
@@ -204,7 +209,9 @@ export const CommentsOverlay: React.FC<Props> = ({ comments }) => {
       onClick={handlePlacementClick}
       className={clsx(
         "absolute inset-0 z-[6]",
-        isPlacing ? "pointer-events-auto cursor-crosshair" : "pointer-events-none",
+        isPlacing
+          ? "pointer-events-auto cursor-crosshair"
+          : "pointer-events-none",
       )}
     >
       {isPlacing ? (

@@ -49,7 +49,9 @@ export const CommentsPanel: React.FC<Props> = ({ comments }) => {
       <div className="flex items-center justify-between gap-2 px-4 py-3 border-b-2 border-black dark:border-neutral-700 bg-slate-50 dark:bg-neutral-800/50">
         <button
           type="button"
-          onClick={comments.isPlacing ? comments.cancelPlacing : comments.startPlacing}
+          onClick={
+            comments.isPlacing ? comments.cancelPlacing : comments.startPlacing
+          }
           className={clsx(
             "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-lg border-2 border-black dark:border-neutral-600 transition-all duration-200 shadow-[1.5px_1.5px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-0.5 active:translate-x-[1px] active:translate-y-[1px] active:shadow-none",
             comments.isPlacing
@@ -65,7 +67,9 @@ export const CommentsPanel: React.FC<Props> = ({ comments }) => {
             <input
               type="checkbox"
               checked={comments.showResolved}
-              onChange={(event) => comments.setShowResolved(event.target.checked)}
+              onChange={(event) =>
+                comments.setShowResolved(event.target.checked)
+              }
               className="accent-indigo-600"
             />
             Show resolved
@@ -113,7 +117,9 @@ export const CommentsPanel: React.FC<Props> = ({ comments }) => {
                   canResolve={comments.canResolve(thread)}
                   canDelete={comments.canDelete}
                   onReply={comments.submitReply}
-                  onToggleResolved={(entry) => void comments.toggleResolved(entry)}
+                  onToggleResolved={(entry) =>
+                    void comments.toggleResolved(entry)
+                  }
                   onDelete={(comment) => void comments.deleteComment(comment)}
                 />
               </div>

@@ -11,7 +11,17 @@ import { getTestPrisma, setupTestDb } from "./testUtils";
 const scene = (id: string) => ({
   type: "excalidraw",
   version: 2,
-  elements: [{ id, type: "rectangle", x: 0, y: 0, width: 10, height: 10, isDeleted: false }],
+  elements: [
+    {
+      id,
+      type: "rectangle",
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+      isDeleted: false,
+    },
+  ],
   appState: { viewBackgroundColor: "#ffffff" },
   files: {},
 });
@@ -49,13 +59,21 @@ describe("MCP endpoint", () => {
     return client;
   };
 
-  const call = async (client: Client, name: string, args: Record<string, unknown>) => {
+  const call = async (
+    client: Client,
+    name: string,
+    args: Record<string, unknown>,
+  ) => {
     const result = (await client.callTool({ name, arguments: args })) as {
       isError?: boolean;
       content: { text: string }[];
     };
     const text = result.content[0].text;
-    return { isError: Boolean(result.isError), text, json: result.isError ? null : JSON.parse(text) };
+    return {
+      isError: Boolean(result.isError),
+      text,
+      json: result.isError ? null : JSON.parse(text),
+    };
   };
 
   beforeAll(async () => {
@@ -68,10 +86,17 @@ describe("MCP endpoint", () => {
       create: { id: "default", authEnabled: true },
     });
     const user = await prisma.user.create({
-      data: { email: "mcp-user@test.local", passwordHash: "x", name: "MCP User" },
+      data: {
+        email: "mcp-user@test.local",
+        passwordHash: "x",
+        name: "MCP User",
+      },
     });
     writeKey = await createKey(user.id);
-    readOnlyKey = await createKey(user.id, ["drawings:read", "collections:read"]);
+    readOnlyKey = await createKey(user.id, [
+      "drawings:read",
+      "collections:read",
+    ]);
     server = app.listen(0);
     baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   });
@@ -102,7 +127,12 @@ describe("MCP endpoint", () => {
   it("adds a drawing to a new collection and replaces it by name", async () => {
     const client = await connect(writeKey);
     const tools = (await client.listTools()).tools.map((tool) => tool.name);
-    expect(tools).toEqual(["list_collections", "list_drawings", "add_drawing", "replace_drawing"]);
+    expect(tools).toEqual([
+      "list_collections",
+      "list_drawings",
+      "add_drawing",
+      "replace_drawing",
+    ]);
 
     const added = await call(client, "add_drawing", {
       content: JSON.stringify(scene("first")),
@@ -111,7 +141,10 @@ describe("MCP endpoint", () => {
       createCollectionIfMissing: true,
     });
     expect(added.isError).toBe(false);
-    expect(added.json).toMatchObject({ collectionName: "Diagrams", createdCollection: true });
+    expect(added.json).toMatchObject({
+      collectionName: "Diagrams",
+      createdCollection: true,
+    });
     expect(added.json.url).toMatch(new RegExp(`/editor/${added.json.id}$`));
 
     const replaced = await call(client, "replace_drawing", {
@@ -122,8 +155,12 @@ describe("MCP endpoint", () => {
     expect(replaced.isError).toBe(false);
     expect(replaced.json.id).toBe(added.json.id);
 
-    const stored = await prisma.drawing.findUniqueOrThrow({ where: { id: added.json.id } });
-    expect(JSON.parse(stored.elements).map((e: { id: string }) => e.id)).toEqual(["second"]);
+    const stored = await prisma.drawing.findUniqueOrThrow({
+      where: { id: added.json.id },
+    });
+    expect(
+      JSON.parse(stored.elements).map((e: { id: string }) => e.id),
+    ).toEqual(["second"]);
     expect(stored.collectionId).toBe(added.json.collectionId);
     expect(stored.preview).toBeNull();
     await client.close();
@@ -133,7 +170,9 @@ describe("MCP endpoint", () => {
     const client = await connect(readOnlyKey);
     const listed = await call(client, "list_drawings", {});
     expect(listed.isError).toBe(false);
-    expect(listed.json.map((d: { name: string }) => d.name)).toContain("Architecture overview");
+    expect(listed.json.map((d: { name: string }) => d.name)).toContain(
+      "Architecture overview",
+    );
 
     const added = await call(client, "add_drawing", { content: scene("x") });
     expect(added.isError).toBe(true);

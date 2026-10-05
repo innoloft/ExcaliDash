@@ -56,8 +56,5 @@ export const canvasPointToScene = (
   y: point.y / viewport.zoom - viewport.scrollY,
 });
 
-export const viewportsEqual = (
-  a: CanvasViewport,
-  b: CanvasViewport,
-): boolean =>
+export const viewportsEqual = (a: CanvasViewport, b: CanvasViewport): boolean =>
   a.scrollX === b.scrollX && a.scrollY === b.scrollY && a.zoom === b.zoom;

@@ -31,11 +31,22 @@ export const isAllowedRedirectUri = (value: unknown): value is string => {
   }
 };
 
-export type RegisteredClient = { clientId: string; name: string; redirectUris: string[] };
+export type RegisteredClient = {
+  clientId: string;
+  name: string;
+  redirectUris: string[];
+};
 
-export const readClient = (signer: OAuthSigner, clientId: unknown): RegisteredClient | null => {
-  const payload = signer.verify<{ r?: unknown; n?: unknown }>(CLIENT_PURPOSE, clientId);
-  if (!payload || !Array.isArray(payload.r) || typeof payload.n !== "string") return null;
+export const readClient = (
+  signer: OAuthSigner,
+  clientId: unknown,
+): RegisteredClient | null => {
+  const payload = signer.verify<{ r?: unknown; n?: unknown }>(
+    CLIENT_PURPOSE,
+    clientId,
+  );
+  if (!payload || !Array.isArray(payload.r) || typeof payload.n !== "string")
+    return null;
   const redirectUris = payload.r.filter(isAllowedRedirectUri);
   if (redirectUris.length === 0) return null;
   return { clientId: clientId as string, name: payload.n, redirectUris };
@@ -70,21 +81,36 @@ export const parseAuthorizationRequest = (
 ): AuthorizationRequest => {
   const client = readClient(signer, params.client_id);
   if (!client) {
-    throw new AuthorizationRequestError("invalid_client", "Unknown client. Remove and re-add the connector.");
+    throw new AuthorizationRequestError(
+      "invalid_client",
+      "Unknown client. Remove and re-add the connector.",
+    );
   }
   const redirectUri = str(params.redirect_uri);
   if (!redirectUri || !client.redirectUris.includes(redirectUri)) {
-    throw new AuthorizationRequestError("invalid_request", "redirect_uri does not match the registered client");
+    throw new AuthorizationRequestError(
+      "invalid_request",
+      "redirect_uri does not match the registered client",
+    );
   }
   if (params.response_type !== "code") {
-    throw new AuthorizationRequestError("unsupported_response_type", "Only response_type=code is supported");
+    throw new AuthorizationRequestError(
+      "unsupported_response_type",
+      "Only response_type=code is supported",
+    );
   }
   const codeChallenge = str(params.code_challenge);
   if (!codeChallenge || !/^[A-Za-z0-9\-._~]{43,128}$/.test(codeChallenge)) {
-    throw new AuthorizationRequestError("invalid_request", "A PKCE code_challenge is required");
+    throw new AuthorizationRequestError(
+      "invalid_request",
+      "A PKCE code_challenge is required",
+    );
   }
   if (params.code_challenge_method !== "S256") {
-    throw new AuthorizationRequestError("invalid_request", "code_challenge_method must be S256");
+    throw new AuthorizationRequestError(
+      "invalid_request",
+      "code_challenge_method must be S256",
+    );
   }
   const state = str(params.state);
   if (state && state.length > 1024) {

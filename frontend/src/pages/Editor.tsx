@@ -180,7 +180,10 @@ const ExcalidrawEditor: React.FC = () => {
   });
   useLibraryImportFromUrl({ excalidrawAPIRef: excalidrawAPI, isReady, user });
   useEditorGridStep({ excalidrawAPI, isReady, gridStep });
-  useCanvasScrollToZoom({ containerRef: editorContainerRef, enabled: scrollToZoom });
+  useCanvasScrollToZoom({
+    containerRef: editorContainerRef,
+    enabled: scrollToZoom,
+  });
   const persistenceRefs = React.useMemo(
     () => ({
       currentDrawingVersion: currentDrawingVersionRef,

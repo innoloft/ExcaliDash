@@ -163,7 +163,8 @@ const authorizeApiKeyRequest = (
   }
   // The MCP endpoint needs no scope of its own: every tool re-enters the
   // scoped REST routes with the same key.
-  if (req.method === "POST" && normalizeRequestPath(req) === "/mcp") return true;
+  if (req.method === "POST" && normalizeRequestPath(req) === "/mcp")
+    return true;
   const requiredScope = getRequiredApiKeyScope(req);
   if (requiredScope && scopes.includes(requiredScope)) {
     return true;

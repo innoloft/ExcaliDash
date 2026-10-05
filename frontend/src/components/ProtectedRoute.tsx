@@ -87,7 +87,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     // Connector sign-ins must land back on the consent screen afterwards.
     if (location.pathname.startsWith("/oauth/")) {
       const returnTo = `${location.pathname}${location.search}`;
-      return <Navigate to={`/login?returnTo=${encodeURIComponent(returnTo)}`} replace />;
+      return (
+        <Navigate
+          to={`/login?returnTo=${encodeURIComponent(returnTo)}`}
+          replace
+        />
+      );
     }
 
     return <Navigate to="/login" replace />;

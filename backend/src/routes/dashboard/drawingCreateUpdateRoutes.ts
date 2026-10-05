@@ -410,7 +410,9 @@ export const registerDrawingCreateUpdateRoutes = (
       // editor session. Tell open editors to reload so their next save does
       // not re-introduce the replaced elements.
       if (isSceneUpdate && req.user?.authCredentialType === "apiKey") {
-        io?.to(`drawing_${id}`).emit("drawing-server-update", { drawingId: id });
+        io?.to(`drawing_${id}`).emit("drawing-server-update", {
+          drawingId: id,
+        });
       }
 
       const savedElements = parseJsonField(updatedDrawing.elements, []);

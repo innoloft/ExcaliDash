@@ -34,7 +34,10 @@ export interface ExcaliDashApi {
   createCollection(name: string): Promise<Collection>;
   listDrawings(query: DrawingListQuery): Promise<DrawingSummary[]>;
   createDrawing(input: CreateDrawingInput): Promise<DrawingSummary>;
-  replaceDrawing(id: string, input: ReplaceDrawingInput): Promise<DrawingSummary>;
+  replaceDrawing(
+    id: string,
+    input: ReplaceDrawingInput,
+  ): Promise<DrawingSummary>;
 }
 
 export class ExcaliDashApiError extends Error {
@@ -50,11 +53,14 @@ export class ExcaliDashApiError extends Error {
 const describeFailure = (status: number, body: unknown): string => {
   if (body && typeof body === "object") {
     const { message, error } = body as { message?: unknown; error?: unknown };
-    const parts = [error, message].filter((part) => typeof part === "string" && part.length > 0);
+    const parts = [error, message].filter(
+      (part) => typeof part === "string" && part.length > 0,
+    );
     if (parts.length > 0) return `${status}: ${parts.join(" — ")}`;
   }
   if (status === 401) return "401: API key is invalid or revoked";
-  if (status === 413) return "413: Drawing is larger than the server's body limit";
+  if (status === 413)
+    return "413: Drawing is larger than the server's body limit";
   return `${status}: Request failed`;
 };
 
@@ -94,7 +100,9 @@ export class ExcaliDashClient implements ExcaliDashApi {
       method,
       headers: {
         ...this.options.headers,
-        ...(this.options.apiKey ? { Authorization: `Bearer ${this.options.apiKey}` } : {}),
+        ...(this.options.apiKey
+          ? { Authorization: `Bearer ${this.options.apiKey}` }
+          : {}),
         Accept: "application/json",
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
         ...headers,
@@ -109,7 +117,10 @@ export class ExcaliDashClient implements ExcaliDashApi {
       parsed = undefined;
     }
     if (!response.ok) {
-      throw new ExcaliDashApiError(response.status, describeFailure(response.status, parsed));
+      throw new ExcaliDashApiError(
+        response.status,
+        describeFailure(response.status, parsed),
+      );
     }
     if (parsed === undefined) {
       throw new ExcaliDashApiError(
@@ -141,7 +152,10 @@ export class ExcaliDashClient implements ExcaliDashApi {
     if (query.search) params.set("search", query.search);
     params.set("limit", String(query.limit ?? 50));
     params.set("sortField", "updatedAt");
-    const raw = await this.request<{ drawings: any[] }>("GET", `/drawings?${params}`);
+    const raw = await this.request<{ drawings: any[] }>(
+      "GET",
+      `/drawings?${params}`,
+    );
     return raw.drawings.map(toSummary);
   }
 
@@ -157,12 +171,19 @@ export class ExcaliDashClient implements ExcaliDashApi {
     return toSummary(raw);
   }
 
-  async replaceDrawing(id: string, input: ReplaceDrawingInput): Promise<DrawingSummary> {
+  async replaceDrawing(
+    id: string,
+    input: ReplaceDrawingInput,
+  ): Promise<DrawingSummary> {
     // `preview: null` drops the stale thumbnail so the dashboard regenerates it.
-    const raw = await this.request<any>("PUT", `/drawings/${encodeURIComponent(id)}`, {
-      ...input,
-      preview: null,
-    });
+    const raw = await this.request<any>(
+      "PUT",
+      `/drawings/${encodeURIComponent(id)}`,
+      {
+        ...input,
+        preview: null,
+      },
+    );
     return toSummary(raw);
   }
 }

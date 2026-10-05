@@ -59,7 +59,9 @@ test.describe("Drawing Comments", () => {
     const pin = page.locator('button[title*="Please double-check this arrow"]');
     await expect(pin).toHaveCount(1);
 
-    const stored = await request.get(`${API_URL}/drawings/${drawing.id}/comments`);
+    const stored = await request.get(
+      `${API_URL}/drawings/${drawing.id}/comments`,
+    );
     expect(stored.ok()).toBe(true);
     const storedBody = await stored.json();
     expect(storedBody.comments).toHaveLength(1);
@@ -152,8 +154,13 @@ test.describe("Drawing Comments", () => {
     await page.getByText("Root comment").first().click();
     const reply = page.getByPlaceholder("Reply…").first();
     await reply.fill("Answered");
-    await page.getByRole("button", { name: "Reply", exact: true }).first().click();
-    await expect(page.locator("p", { hasText: "Answered" }).first()).toBeVisible();
+    await page
+      .getByRole("button", { name: "Reply", exact: true })
+      .first()
+      .click();
+    await expect(
+      page.locator("p", { hasText: "Answered" }).first(),
+    ).toBeVisible();
 
     await expect
       .poll(async () => {
@@ -166,10 +173,11 @@ test.describe("Drawing Comments", () => {
       })
       .toBe(1);
 
-    await page.getByRole("button", { name: /Resolve/i }).first().click();
-    await expect(
-      page.locator('button[title*="Root comment"]'),
-    ).toHaveCount(0);
+    await page
+      .getByRole("button", { name: /Resolve/i })
+      .first()
+      .click();
+    await expect(page.locator('button[title*="Root comment"]')).toHaveCount(0);
 
     await page.getByLabel(/Show resolved/i).check();
     await expect(page.locator('button[title*="Root comment"]')).toHaveCount(1);

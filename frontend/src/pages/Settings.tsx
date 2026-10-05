@@ -32,10 +32,7 @@ export const Settings: React.FC = () => {
     "editorAutoHide",
     false,
   );
-  const [scrollToZoom, setScrollToZoom] = usePreference(
-    "scrollToZoom",
-    false,
-  );
+  const [scrollToZoom, setScrollToZoom] = usePreference("scrollToZoom", false);
   const [compactSidebar, setCompactSidebar] = usePreference(
     "compactSidebar",
     true,

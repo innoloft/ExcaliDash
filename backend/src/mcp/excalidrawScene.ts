@@ -41,7 +41,8 @@ export const parseExcalidrawScene = (content: unknown): DrawingScene => {
   const appState = parseMaybeJson(candidate.appState ?? {});
   const files = parseMaybeJson(candidate.files ?? {});
 
-  if (!Array.isArray(elements)) throw new Error("Drawing has no valid `elements` array");
+  if (!Array.isArray(elements))
+    throw new Error("Drawing has no valid `elements` array");
   if (!isRecord(appState)) throw new Error("Drawing has an invalid `appState`");
   if (!isRecord(files)) throw new Error("Drawing has an invalid `files` map");
 

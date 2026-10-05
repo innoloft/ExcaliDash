@@ -44,7 +44,9 @@ describe("Drawing comments", () => {
   };
 
   const createCsrf = async (agent: ReturnType<typeof request.agent>) => {
-    const response = await agent.get("/csrf-token").set("User-Agent", userAgent);
+    const response = await agent
+      .get("/csrf-token")
+      .set("User-Agent", userAgent);
     return { name: response.body.header, token: response.body.token };
   };
 

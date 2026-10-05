@@ -30,33 +30,56 @@ const readHeader = (req: express.Request, name: string): string | undefined => {
 };
 
 const jsonRpcError = (res: express.Response, status: number, message: string) =>
-  res.status(status).json({ jsonrpc: "2.0", error: { code: -32000, message }, id: null });
+  res
+    .status(status)
+    .json({ jsonrpc: "2.0", error: { code: -32000, message }, id: null });
 
 /**
  * Remote MCP endpoint (Streamable HTTP, stateless). Every request gets a
  * fresh server whose tools call this backend's REST API over loopback with
  * the caller's API key, so the tools are exactly as capable as the key.
  */
-export const registerMcpRoutes = (app: express.Express, deps: RegisterMcpRoutesDeps) => {
+export const registerMcpRoutes = (
+  app: express.Express,
+  deps: RegisterMcpRoutesDeps,
+) => {
   const signer = createOAuthSigner(deps.jwtSecret);
-  registerOAuthDiscoveryRoutes(app, { signer, publicAppUrl: deps.publicAppUrl });
-  registerOAuthAuthorizeTokenRoutes(app, { prisma: deps.prisma, requireAuth: deps.requireAuth, signer });
+  registerOAuthDiscoveryRoutes(app, {
+    signer,
+    publicAppUrl: deps.publicAppUrl,
+  });
+  registerOAuthAuthorizeTokenRoutes(app, {
+    prisma: deps.prisma,
+    requireAuth: deps.requireAuth,
+    signer,
+  });
 
   // Advertise Bearer auth on every 401, including requireAuth's own, and
   // point OAuth clients (Claude connectors) at the discovery document.
   const challenge: express.RequestHandler = (req, res, next) => {
-    const metadataUrl = protectedResourceMetadataUrl(resolvePublicBaseUrl(req, deps.publicAppUrl));
-    res.setHeader("WWW-Authenticate", `Bearer realm="excalidash", resource_metadata="${metadataUrl}"`);
+    const metadataUrl = protectedResourceMetadataUrl(
+      resolvePublicBaseUrl(req, deps.publicAppUrl),
+    );
+    res.setHeader(
+      "WWW-Authenticate",
+      `Bearer realm="excalidash", resource_metadata="${metadataUrl}"`,
+    );
     next();
   };
   app.post(MCP_PATH, challenge, deps.requireAuth, async (req, res) => {
     const credential = req.user?.authCredentialType;
     if (credential !== "apiKey" && credential !== "bootstrap") {
-      return jsonRpcError(res, 401, "The MCP endpoint requires an ExcaliDash API key as Bearer token");
+      return jsonRpcError(
+        res,
+        401,
+        "The MCP endpoint requires an ExcaliDash API key as Bearer token",
+      );
     }
     res.removeHeader("WWW-Authenticate");
     const apiKey =
-      credential === "apiKey" ? readHeader(req, "authorization")!.slice("Bearer ".length) : null;
+      credential === "apiKey"
+        ? readHeader(req, "authorization")!.slice("Bearer ".length)
+        : null;
     // Hand the caller's proxy context to the loopback call so the HTTPS
     // redirect policy treats it like the request that reached us.
     const forwardedProto = readHeader(req, "x-forwarded-proto");

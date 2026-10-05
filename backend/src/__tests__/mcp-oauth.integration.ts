@@ -9,7 +9,10 @@ import { getTestPrisma, setupTestDb } from "./testUtils";
 const CLAUDE_CALLBACK = "https://claude.ai/api/mcp/auth_callback";
 const userAgent = "vitest-mcp-oauth";
 const verifier = crypto.randomBytes(32).toString("base64url");
-const challenge = crypto.createHash("sha256").update(verifier).digest("base64url");
+const challenge = crypto
+  .createHash("sha256")
+  .update(verifier)
+  .digest("base64url");
 
 describe("MCP OAuth connector flow", () => {
   let prisma: PrismaClient;
@@ -30,7 +33,10 @@ describe("MCP OAuth connector flow", () => {
     ...overrides,
   });
 
-  const decide = (decision: "approve" | "deny", overrides: Record<string, string> = {}) =>
+  const decide = (
+    decision: "approve" | "deny",
+    overrides: Record<string, string> = {},
+  ) =>
     agent
       .post("/oauth/authorize")
       .set("User-Agent", userAgent)
@@ -66,14 +72,24 @@ describe("MCP OAuth connector flow", () => {
       create: { id: "default", authEnabled: true },
     });
     user = await prisma.user.create({
-      data: { email: "oauth-user@test.local", passwordHash: "x", name: "OAuth User" },
+      data: {
+        email: "oauth-user@test.local",
+        passwordHash: "x",
+        name: "OAuth User",
+      },
       select: { id: true, email: true },
     });
-    session = jwt.sign({ userId: user.id, email: user.email, type: "access" }, config.jwtSecret, {
-      expiresIn: "15m",
-    });
+    session = jwt.sign(
+      { userId: user.id, email: user.email, type: "access" },
+      config.jwtSecret,
+      {
+        expiresIn: "15m",
+      },
+    );
     agent = request.agent(app);
-    const csrfResponse = await agent.get("/csrf-token").set("User-Agent", userAgent);
+    const csrfResponse = await agent
+      .get("/csrf-token")
+      .set("User-Agent", userAgent);
     csrf = { header: csrfResponse.body.header, token: csrfResponse.body.token };
   });
 
@@ -90,44 +106,70 @@ describe("MCP OAuth connector flow", () => {
       .set("Accept", "application/json, text/event-stream")
       .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
     expect(unauthorized.status).toBe(401);
-    const metadataUrl = /resource_metadata="([^"]+)"/.exec(unauthorized.headers["www-authenticate"])?.[1];
-    expect(metadataUrl).toMatch(/\/\.well-known\/oauth-protected-resource\/mcp$/);
+    const metadataUrl = /resource_metadata="([^"]+)"/.exec(
+      unauthorized.headers["www-authenticate"],
+    )?.[1];
+    expect(metadataUrl).toMatch(
+      /\/\.well-known\/oauth-protected-resource\/mcp$/,
+    );
 
-    expect(metadataUrl).toBe(`http://${host}/.well-known/oauth-protected-resource/mcp`);
-    const resource = await request(app).get(new URL(metadataUrl!).pathname).set("Host", host);
+    expect(metadataUrl).toBe(
+      `http://${host}/.well-known/oauth-protected-resource/mcp`,
+    );
+    const resource = await request(app)
+      .get(new URL(metadataUrl!).pathname)
+      .set("Host", host);
     expect(resource.body.resource).toMatch(/\/mcp$/);
 
-    const server = await request(app).get("/.well-known/oauth-authorization-server").set("Host", host);
+    const server = await request(app)
+      .get("/.well-known/oauth-authorization-server")
+      .set("Host", host);
     expect(server.body).toMatchObject({
       issuer: resource.body.authorization_servers[0],
       code_challenge_methods_supported: ["S256"],
     });
-    expect(server.body.authorization_endpoint).toBe(`${server.body.issuer}/oauth/authorize`);
-    expect(server.body.token_endpoint).toBe(`${server.body.issuer}/api/oauth/token`);
+    expect(server.body.authorization_endpoint).toBe(
+      `${server.body.issuer}/oauth/authorize`,
+    );
+    expect(server.body.token_endpoint).toBe(
+      `${server.body.issuer}/api/oauth/token`,
+    );
   });
 
   it("registers only Claude and loopback redirect URIs", async () => {
     const rejected = await request(app)
       .post("/oauth/register")
-      .send({ client_name: "Evil", redirect_uris: ["https://evil.example/callback"] });
+      .send({
+        client_name: "Evil",
+        redirect_uris: ["https://evil.example/callback"],
+      });
     expect(rejected.status).toBe(400);
 
     const registered = await request(app)
       .post("/oauth/register")
-      .send({ client_name: "Claude", redirect_uris: [CLAUDE_CALLBACK], token_endpoint_auth_method: "none" });
+      .send({
+        client_name: "Claude",
+        redirect_uris: [CLAUDE_CALLBACK],
+        token_endpoint_auth_method: "none",
+      });
     expect(registered.status).toBe(201);
     clientId = registered.body.client_id;
 
     const loopback = await request(app)
       .post("/oauth/register")
-      .send({ redirect_uris: ["http://localhost:53682/callback"], token_endpoint_auth_method: "client_secret_post" });
+      .send({
+        redirect_uris: ["http://localhost:53682/callback"],
+        token_endpoint_auth_method: "client_secret_post",
+      });
     expect(loopback.status).toBe(201);
     expect(loopback.body.token_endpoint_auth_method).toBe("none");
     expect(loopback.body.client_secret).toBeUndefined();
   });
 
   it("shows the consent details only to a signed-in user", async () => {
-    const anonymous = await request(app).get("/oauth/authorize").query(authorizeParams());
+    const anonymous = await request(app)
+      .get("/oauth/authorize")
+      .query(authorizeParams());
     expect(anonymous.status).toBe(401);
 
     const details = await request(app)
@@ -172,7 +214,9 @@ describe("MCP OAuth connector flow", () => {
 
   it("exchanges an approved code once, with PKCE, for a working API key", async () => {
     const code = await approveForCode();
-    expect((await exchange(code, "x".repeat(43))).body.error).toBe("invalid_grant");
+    expect((await exchange(code, "x".repeat(43))).body.error).toBe(
+      "invalid_grant",
+    );
 
     const token = await exchange(code);
     expect(token.status).toBe(200);

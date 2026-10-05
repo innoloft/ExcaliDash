@@ -85,7 +85,11 @@ export const registerDrawingCommentRoutes = (
       }
 
       const rawParentId = req.body?.parentId;
-      if (rawParentId !== undefined && rawParentId !== null && typeof rawParentId !== "string") {
+      if (
+        rawParentId !== undefined &&
+        rawParentId !== null &&
+        typeof rawParentId !== "string"
+      ) {
         return res.status(400).json({
           error: "Validation error",
           message: "parentId must be a string",
@@ -199,7 +203,8 @@ export const registerDrawingCommentRoutes = (
         if (x === null || y === null) {
           return res.status(400).json({
             error: "Validation error",
-            message: "Moving a comment pin needs finite x and y scene coordinates",
+            message:
+              "Moving a comment pin needs finite x and y scene coordinates",
           });
         }
         position = { x, y };

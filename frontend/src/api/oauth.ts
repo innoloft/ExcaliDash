@@ -7,9 +7,13 @@ export type OAuthAuthorizationDetails = {
   user: { name: string; email: string };
 };
 
-export const describeOAuthError = (error: unknown, fallback: string): string => {
+export const describeOAuthError = (
+  error: unknown,
+  fallback: string,
+): string => {
   if (isAxiosError(error)) {
-    const data = error.response?.data as { error_description?: string; message?: string } | undefined;
+    const data = error.response?.data as
+      { error_description?: string; message?: string } | undefined;
     return data?.error_description || data?.message || fallback;
   }
   return error instanceof Error ? error.message : fallback;
@@ -19,7 +23,10 @@ export const describeOAuthError = (error: unknown, fallback: string): string => 
 export const getOAuthAuthorization = async (
   params: Record<string, string>,
 ): Promise<OAuthAuthorizationDetails> => {
-  const response = await api.get<OAuthAuthorizationDetails>("/oauth/authorize", { params });
+  const response = await api.get<OAuthAuthorizationDetails>(
+    "/oauth/authorize",
+    { params },
+  );
   return response.data;
 };
 
@@ -28,6 +35,9 @@ export const decideOAuthAuthorization = async (
   params: Record<string, string>,
   decision: "approve" | "deny",
 ): Promise<string> => {
-  const response = await api.post<{ redirectTo: string }>("/oauth/authorize", { ...params, decision });
+  const response = await api.post<{ redirectTo: string }>("/oauth/authorize", {
+    ...params,
+    decision,
+  });
   return response.data.redirectTo;
 };

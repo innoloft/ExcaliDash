@@ -39,7 +39,7 @@ The OAuth client is already configured with the right redirect URI:
 In the Google Cloud console for project `caramel-pager-461013-t3`, check the **OAuth consent screen**:
 
 - **User type "Internal"** → only innoloft.com Workspace accounts can sign in. This is what you want.
-- **User type "External"** → *any Google account on the internet can sign in* and will be auto-provisioned. ExcaliDash has no domain allowlist, so this is your only place to restrict access.
+- **User type "External"** → _any Google account on the internet can sign in_ and will be auto-provisioned. ExcaliDash has no domain allowlist, so this is your only place to restrict access.
 
 `AUTH_MODE=oidc_enforced` disables `/auth/login` and `/auth/register` entirely — Google is the only way in.
 

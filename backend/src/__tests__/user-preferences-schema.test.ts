@@ -28,7 +28,8 @@ describe("userPreferencesSchema", () => {
 
   it("rejects a non-boolean scrollToZoom", () => {
     expect(
-      userPreferencesSchema.partial().safeParse({ scrollToZoom: "yes" }).success,
+      userPreferencesSchema.partial().safeParse({ scrollToZoom: "yes" })
+        .success,
     ).toBe(false);
   });
 
@@ -44,7 +45,8 @@ describe("userPreferencesSchema", () => {
 
   it("rejects a non-boolean editorAutoHide", () => {
     expect(
-      userPreferencesSchema.partial().safeParse({ editorAutoHide: "yes" }).success,
+      userPreferencesSchema.partial().safeParse({ editorAutoHide: "yes" })
+        .success,
     ).toBe(false);
   });
 

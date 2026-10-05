@@ -37,7 +37,10 @@ describe("createOAuthSigner", () => {
     const [, signature] = signer.sign("code", { u: "user-1" }).split(".");
     const forged = `${Buffer.from(JSON.stringify({ u: "admin" })).toString("base64url")}.${signature}`;
     expect(signer.verify("code", forged)).toBeNull();
-    const expired = signer.sign("code", { u: "user-1", exp: Math.floor(Date.now() / 1000) - 1 });
+    const expired = signer.sign("code", {
+      u: "user-1",
+      exp: Math.floor(Date.now() / 1000) - 1,
+    });
     expect(signer.verify("code", expired)).toBeNull();
   });
 });

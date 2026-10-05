@@ -12,7 +12,11 @@ import {
   getCsrfValidationClientIds,
 } from "../security/csrfClient";
 import { isNonBrowserApiKeyBearerRequest } from "../auth/apiKeys";
-import { MCP_PATH, OAUTH_REGISTER_PATH, OAUTH_TOKEN_PATH } from "../mcp/constants";
+import {
+  MCP_PATH,
+  OAUTH_REGISTER_PATH,
+  OAUTH_TOKEN_PATH,
+} from "../mcp/constants";
 
 const CSRF_CLIENT_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30; // 30 days
 
@@ -167,12 +171,20 @@ export const registerCsrfProtection = ({
     // MCP clients call /mcp before they know they need a key. The route
     // accepts only API keys, never cookie sessions, so a non-browser request
     // there has no session to forge; let it through to get a proper 401.
-    if (req.method === "POST" && req.path === MCP_PATH && !req.headers.origin && !req.headers.referer) {
+    if (
+      req.method === "POST" &&
+      req.path === MCP_PATH &&
+      !req.headers.origin &&
+      !req.headers.referer
+    ) {
       return next();
     }
     // OAuth client registration and code exchange never read cookies; the
     // code is bound to the client by PKCE, so CSRF does not apply.
-    if (req.method === "POST" && (req.path === OAUTH_REGISTER_PATH || req.path === OAUTH_TOKEN_PATH)) {
+    if (
+      req.method === "POST" &&
+      (req.path === OAUTH_REGISTER_PATH || req.path === OAUTH_TOKEN_PATH)
+    ) {
       return next();
     }
 

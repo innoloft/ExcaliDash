@@ -8,7 +8,9 @@ const TRASH_ID = "trash";
 const sameName = (a: string, b: string) =>
   a.trim().toLocaleLowerCase() === b.trim().toLocaleLowerCase();
 
-export const listUsableCollections = async (api: ExcaliDashApi): Promise<Collection[]> =>
+export const listUsableCollections = async (
+  api: ExcaliDashApi,
+): Promise<Collection[]> =>
   (await api.listCollections()).filter((c) => c.id !== TRASH_ID);
 
 /**
@@ -27,12 +29,19 @@ export const resolveCollection = async (
   const byName = collections.filter((c) => sameName(c.name, ref));
   if (byName.length === 1) return { collection: byName[0], created: false };
   if (byName.length > 1) {
-    const ids = byName.map((c) => `${c.id}${c.isOwner ? "" : " (shared)"}`).join(", ");
-    throw new Error(`Collection name "${ref}" is ambiguous; pass one of these ids: ${ids}`);
+    const ids = byName
+      .map((c) => `${c.id}${c.isOwner ? "" : " (shared)"}`)
+      .join(", ");
+    throw new Error(
+      `Collection name "${ref}" is ambiguous; pass one of these ids: ${ids}`,
+    );
   }
 
   if (options.createIfMissing) {
-    return { collection: await api.createCollection(ref.trim()), created: true };
+    return {
+      collection: await api.createCollection(ref.trim()),
+      created: true,
+    };
   }
   const available = collections.map((c) => `"${c.name}"`).join(", ") || "none";
   throw new Error(
@@ -41,7 +50,8 @@ export const resolveCollection = async (
   );
 };
 
-export const drawingUrl = (appUrl: string, id: string) => `${appUrl}/editor/${id}`;
+export const drawingUrl = (appUrl: string, id: string) =>
+  `${appUrl}/editor/${id}`;
 
 type DrawingResult = DrawingSummary & { url: string };
 
@@ -57,7 +67,9 @@ export const addDrawing = async (
   api: ExcaliDashApi,
   appUrl: string,
   input: AddDrawingInput,
-): Promise<DrawingResult & { collectionName: string | null; createdCollection: boolean }> => {
+): Promise<
+  DrawingResult & { collectionName: string | null; createdCollection: boolean }
+> => {
   const scene = parseExcalidrawScene(input.content);
   const resolved = input.collection
     ? await resolveCollection(api, input.collection, {
@@ -84,10 +96,17 @@ export const findDrawingByName = async (
   name: string,
   collection?: string,
 ): Promise<DrawingSummary> => {
-  const collectionId = collection ? (await resolveCollection(api, collection)).collection.id : undefined;
-  const candidates = await api.listDrawings({ collectionId, search: name.trim(), limit: 200 });
+  const collectionId = collection
+    ? (await resolveCollection(api, collection)).collection.id
+    : undefined;
+  const candidates = await api.listDrawings({
+    collectionId,
+    search: name.trim(),
+    limit: 200,
+  });
   const exact = candidates.filter((d) => d.name === name.trim());
-  const matches = exact.length > 0 ? exact : candidates.filter((d) => sameName(d.name, name));
+  const matches =
+    exact.length > 0 ? exact : candidates.filter((d) => sameName(d.name, name));
 
   if (matches.length === 1) return matches[0];
   const scope = collection ? ` in collection "${collection}"` : "";
@@ -97,8 +116,12 @@ export const findDrawingByName = async (
         "are only found when `collection` is given.",
     );
   }
-  const ids = matches.map((d) => `${d.id} (collection ${d.collectionId ?? "none"})`).join(", ");
-  throw new Error(`Several drawings are named "${name}"${scope}; pass drawingId: ${ids}`);
+  const ids = matches
+    .map((d) => `${d.id} (collection ${d.collectionId ?? "none"})`)
+    .join(", ");
+  throw new Error(
+    `Several drawings are named "${name}"${scope}; pass drawingId: ${ids}`,
+  );
 };
 
 export type ReplaceDrawingInput = {
@@ -117,7 +140,9 @@ export const replaceDrawing = async (
   const hasId = Boolean(input.drawingId?.trim());
   const hasName = Boolean(input.name?.trim());
   if (hasId === hasName) {
-    throw new Error("Identify the drawing with exactly one of `drawingId` or `name`");
+    throw new Error(
+      "Identify the drawing with exactly one of `drawingId` or `name`",
+    );
   }
   // Parse the file before touching the server so a bad file fails fast.
   const scene = parseExcalidrawScene(input.content);

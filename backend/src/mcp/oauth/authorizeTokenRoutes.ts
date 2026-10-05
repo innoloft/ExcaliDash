@@ -35,8 +35,12 @@ type CodePayload = {
   exp: number;
 };
 
-const tokenError = (res: express.Response, status: number, error: string, description: string) =>
-  res.status(status).json({ error, error_description: description });
+const tokenError = (
+  res: express.Response,
+  status: number,
+  error: string,
+  description: string,
+) => res.status(status).json({ error, error_description: description });
 
 /**
  * Authorization-code flow for the MCP connector. The access token handed to
@@ -44,7 +48,10 @@ const tokenError = (res: express.Response, status: number, error: string, descri
  * endpoint needs no new token type and users revoke access under
  * Settings → API Keys.
  */
-export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: Deps) => {
+export const registerOAuthAuthorizeTokenRoutes = (
+  app: express.Express,
+  deps: Deps,
+) => {
   const { prisma, requireAuth, signer } = deps;
 
   // Codes are single use. Remembering spent ids in memory is enough for a
@@ -53,17 +60,24 @@ export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: De
   const spentCodes = new Map<string, number>();
   const spendCode = (id: string, exp: number): boolean => {
     const now = Date.now();
-    for (const [key, expiresAt] of spentCodes) if (expiresAt < now) spentCodes.delete(key);
+    for (const [key, expiresAt] of spentCodes)
+      if (expiresAt < now) spentCodes.delete(key);
     if (spentCodes.has(id)) return false;
     spentCodes.set(id, exp * 1000);
     return true;
   };
 
-  const ensureInteractiveUser = (req: express.Request, res: express.Response): boolean => {
+  const ensureInteractiveUser = (
+    req: express.Request,
+    res: express.Response,
+  ): boolean => {
     const user = req.user;
     const credential = user?.authCredentialType;
     if (!user || (credential !== "jwt" && credential !== "bootstrap")) {
-      res.status(401).json({ error: "unauthorized", error_description: "Sign in to ExcaliDash first" });
+      res.status(401).json({
+        error: "unauthorized",
+        error_description: "Sign in to ExcaliDash first",
+      });
       return false;
     }
     if (user.impersonatorId) {
@@ -85,7 +99,9 @@ export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: De
       return parseAuthorizationRequest(signer, params);
     } catch (error) {
       if (!(error instanceof AuthorizationRequestError)) throw error;
-      res.status(400).json({ error: error.error, error_description: error.message });
+      res
+        .status(400)
+        .json({ error: error.error, error_description: error.message });
       return null;
     }
   };
@@ -128,7 +144,12 @@ export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: De
       j: crypto.randomBytes(12).toString("base64url"),
       exp: Math.floor(Date.now() / 1000) + CODE_TTL_SECONDS,
     } satisfies CodePayload);
-    return res.json({ redirectTo: buildRedirect(request.redirectUri, { code, state: request.state }) });
+    return res.json({
+      redirectTo: buildRedirect(request.redirectUri, {
+        code,
+        state: request.state,
+      }),
+    });
   });
 
   app.post(OAUTH_TOKEN_PATH, async (req, res) => {
@@ -137,13 +158,20 @@ export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: De
     const body = (req.body ?? {}) as Record<string, unknown>;
 
     if (body.grant_type !== "authorization_code") {
-      return tokenError(res, 400, "unsupported_grant_type", "Only authorization_code is supported");
+      return tokenError(
+        res,
+        400,
+        "unsupported_grant_type",
+        "Only authorization_code is supported",
+      );
     }
     const client = readClient(signer, body.client_id);
-    if (!client) return tokenError(res, 401, "invalid_client", "Unknown client");
+    if (!client)
+      return tokenError(res, 401, "invalid_client", "Unknown client");
 
     const code = signer.verify<CodePayload>(CODE_PURPOSE, body.code);
-    const verifier = typeof body.code_verifier === "string" ? body.code_verifier : "";
+    const verifier =
+      typeof body.code_verifier === "string" ? body.code_verifier : "";
     if (
       !code ||
       code.c !== sha256Base64Url(client.clientId) ||
@@ -151,10 +179,20 @@ export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: De
       !/^[A-Za-z0-9\-._~]{43,128}$/.test(verifier) ||
       sha256Base64Url(verifier) !== code.cc
     ) {
-      return tokenError(res, 400, "invalid_grant", "The authorization code is invalid or expired");
+      return tokenError(
+        res,
+        400,
+        "invalid_grant",
+        "The authorization code is invalid or expired",
+      );
     }
     if (!spendCode(code.j, code.exp)) {
-      return tokenError(res, 400, "invalid_grant", "The authorization code was already used");
+      return tokenError(
+        res,
+        400,
+        "invalid_grant",
+        "The authorization code was already used",
+      );
     }
 
     const user = await prisma.user.findUnique({
@@ -162,7 +200,12 @@ export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: De
       select: { id: true, isActive: true },
     });
     if (!user?.isActive) {
-      return tokenError(res, 400, "invalid_grant", "The account is no longer active");
+      return tokenError(
+        res,
+        400,
+        "invalid_grant",
+        "The account is no longer active",
+      );
     }
 
     const generated = generateApiKey();
@@ -186,6 +229,10 @@ export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: De
       userAgent: req.headers["user-agent"] || undefined,
     });
 
-    return res.json({ access_token: generated.token, token_type: "Bearer", scope: scopes.join(" ") });
+    return res.json({
+      access_token: generated.token,
+      token_type: "Bearer",
+      scope: scopes.join(" "),
+    });
   });
 };

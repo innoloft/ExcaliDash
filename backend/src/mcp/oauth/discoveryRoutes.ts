@@ -17,8 +17,12 @@ type Deps = { signer: OAuthSigner; publicAppUrl: string | null };
  * OAuth discovery (RFC 9728, RFC 8414) and dynamic client registration
  * (RFC 7591) for the MCP endpoint, as expected by Claude's connectors.
  */
-export const registerOAuthDiscoveryRoutes = (app: express.Express, deps: Deps) => {
-  const baseUrl = (req: express.Request) => resolvePublicBaseUrl(req, deps.publicAppUrl);
+export const registerOAuthDiscoveryRoutes = (
+  app: express.Express,
+  deps: Deps,
+) => {
+  const baseUrl = (req: express.Request) =>
+    resolvePublicBaseUrl(req, deps.publicAppUrl);
 
   const protectedResource: express.RequestHandler = (req, res) => {
     const base = baseUrl(req);
@@ -30,7 +34,10 @@ export const registerOAuthDiscoveryRoutes = (app: express.Express, deps: Deps) =
       resource_name: "ExcaliDash",
     });
   };
-  app.get(`/.well-known/oauth-protected-resource${MCP_PATH}`, protectedResource);
+  app.get(
+    `/.well-known/oauth-protected-resource${MCP_PATH}`,
+    protectedResource,
+  );
   app.get("/.well-known/oauth-protected-resource", protectedResource);
 
   app.get("/.well-known/oauth-authorization-server", (req, res) => {
@@ -52,11 +59,18 @@ export const registerOAuthDiscoveryRoutes = (app: express.Express, deps: Deps) =
   // client's metadata, so nothing is stored until a user approves.
   app.post(OAUTH_REGISTER_PATH, (req, res) => {
     const body = (req.body ?? {}) as Record<string, unknown>;
-    const redirectUris = Array.isArray(body.redirect_uris) ? body.redirect_uris : [];
-    if (redirectUris.length === 0 || redirectUris.length > 5 || !redirectUris.every(isAllowedRedirectUri)) {
+    const redirectUris = Array.isArray(body.redirect_uris)
+      ? body.redirect_uris
+      : [];
+    if (
+      redirectUris.length === 0 ||
+      redirectUris.length > 5 ||
+      !redirectUris.every(isAllowedRedirectUri)
+    ) {
       return res.status(400).json({
         error: "invalid_redirect_uri",
-        error_description: "Only Claude and loopback (localhost) redirect URIs are allowed",
+        error_description:
+          "Only Claude and loopback (localhost) redirect URIs are allowed",
       });
     }
     // Every client is registered as a public client (PKCE, no secret),
@@ -66,7 +80,11 @@ export const registerOAuthDiscoveryRoutes = (app: express.Express, deps: Deps) =
         ? body.client_name.trim().slice(0, 60)
         : "MCP client";
     const issuedAt = Math.floor(Date.now() / 1000);
-    const clientId = deps.signer.sign(CLIENT_PURPOSE, { r: redirectUris, n: name, iat: issuedAt });
+    const clientId = deps.signer.sign(CLIENT_PURPOSE, {
+      r: redirectUris,
+      n: name,
+      iat: issuedAt,
+    });
     return res.status(201).json({
       client_id: clientId,
       client_id_issued_at: issuedAt,
