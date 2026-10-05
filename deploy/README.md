@@ -119,7 +119,7 @@ docker compose down                     # stop
 
 The stack runs our fork, so images are **built from this checkout** rather than
 pulled — `docker compose pull` would fetch upstream images without our changes.
-Keep `deploy/` inside the clone (the build contexts are `../backend` and `..`):
+Keep `deploy/` inside the clone (both images build from the repo root, `..`):
 
 ```bash
 cd /srv/ExcaliDash                 # the clone

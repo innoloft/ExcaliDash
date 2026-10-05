@@ -4,8 +4,8 @@
 #
 # Images are built from this checkout of github.com/innoloft/ExcaliDash, not
 # pulled from Docker Hub — the upstream zimengxiong/* images do not carry our
-# fork's changes. The build contexts are relative, so this file has to stay
-# inside the repo clone.
+# fork's changes. Both images build from the repo root (`..` from here), so
+# this file has to stay in deploy/ inside the repo clone.
 #
 # Database: external PostgreSQL (configured in .env).
 # Reverse proxy (Traefik/nginx on the host) terminates TLS for
@@ -15,7 +15,8 @@ services:
   backend:
     image: excalidash-backend:innoloft
     build:
-      context: .
+      # Repo root, relative to this file; the Dockerfiles copy backend/... paths.
+      context: ..
       dockerfile: backend/Dockerfile
     container_name: excalidash-backend
     # PID 1 that reaps zombies and forwards SIGTERM so graceful shutdown runs.
@@ -74,7 +75,8 @@ services:
   frontend:
     image: excalidash-frontend:innoloft
     build:
-      context: .
+      # Repo root, relative to this file; the Dockerfiles copy frontend/... paths.
+      context: ..
       dockerfile: frontend/Dockerfile
       args:
         VITE_APP_BUILD_LABEL: "innoloft"
