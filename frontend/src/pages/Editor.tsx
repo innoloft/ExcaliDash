@@ -1,3 +1,4 @@
+import * as api from "../api";
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getInitialLangCode } from "../components/LanguageSelector";
@@ -6,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { usePreference } from "../context/PreferencesContext";
 import { useEditorChrome } from "./editor/useEditorChrome";
+import { useEditorAutoHide } from "./editor/useEditorAutoHide";
 import { useEditorIdentity } from "./editor/useEditorIdentity";
 import { EditorDialogs } from "./editor/EditorDialogs";
 import { EditorView } from "./editor/EditorView";
@@ -23,17 +25,22 @@ import { useEditorFileUploads } from "./editor/useEditorFileUploads";
 import { useEditorSceneApi } from "./editor/useEditorSceneApi";
 import { useEditorGridStep } from "./editor/useEditorGridStep";
 import { useCanvasScrollToZoom } from "./editor/useCanvasScrollToZoom";
+import { useKeyboardLayoutFix } from "./editor/useKeyboardLayoutFix";
 import { DEFAULT_GRID_STEP } from "../components/GridStepSelector";
 
 export const Editor: React.FC = () => {
-  return <ExcalidrawEditor />;
+  const { id } = useParams<{ id: string }>();
+  // Keep a departing drawing's queue and refs alive for its unmount flush,
+  // while the next drawing starts with its own scene, version and permissions.
+  return <ExcalidrawEditor key={id} />;
 };
 
 const ExcalidrawEditor: React.FC = () => {
+  useKeyboardLayoutFix();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const [accessLevel, setAccessLevel] = useState<
     "none" | "view" | "edit" | "owner"
@@ -46,26 +53,28 @@ const ExcalidrawEditor: React.FC = () => {
   const [isSceneLoading, setIsSceneLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isSavingOnLeave, setIsSavingOnLeave] = useState(false);
+  const [editorAutoHide] = usePreference("editorAutoHide", false);
+  const { autoHideEnabled, setAutoHideEnabled } = useEditorAutoHide(
+    id,
+    editorAutoHide,
+  );
   const [isShareOpen, setIsShareOpen] = useState(false);
-  const [langCode, setLangCode] = usePreference("language", getInitialLangCode());
+  const [langCode, setLangCode] = usePreference(
+    "language",
+    getInitialLangCode(),
+  );
   const [gridStep, setGridStep] = usePreference("gridStep", DEFAULT_GRID_STEP);
   const [scrollToZoom] = usePreference("scrollToZoom", false);
-  const [alwaysShowHeader, setAlwaysShowHeader] = usePreference("alwaysShowHeader", true);
-  const autoHideEnabled = !alwaysShowHeader;
-  const setAutoHideEnabled = useCallback(
-    (enabled: boolean) => setAlwaysShowHeader(!enabled),
-    [setAlwaysShowHeader],
-  );
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const previewBackup = useRef<{
-    elements: readonly any[];
-    appState: any;
-    files: any;
-  } | null>(null);
+  const historyButtonRef = useRef<HTMLButtonElement>(null);
+  const shareButtonRef = useRef<HTMLButtonElement>(null);
+  const [historyPreview, setHistoryPreview] =
+    useState<api.DrawingSnapshotFull | null>(null);
   const { isHeaderVisible, setIsHeaderVisible } = useEditorChrome({
     drawingName,
     autoHideEnabled,
     isRenaming,
+    isShareOpen,
   });
   const me: UserIdentity = useEditorIdentity(user);
   const [isReady, setIsReady] = useState(false);
@@ -144,6 +153,7 @@ const ExcalidrawEditor: React.FC = () => {
       onCommentsChanged: comments.refresh,
     });
   const { scanNow: scanFileUploads } = useEditorFileUploads({
+    canEdit,
     drawingId: id,
     isReady,
     excalidrawAPI,
@@ -152,6 +162,7 @@ const ExcalidrawEditor: React.FC = () => {
     uploadedRefs: uploadedFileRefsRef,
   });
   const { emitFilesDeltaIfNeeded, setExcalidrawAPI } = useEditorSceneApi({
+    canEdit,
     drawingId: id,
     excalidrawAPIRef: excalidrawAPI,
     isSyncing,
@@ -198,7 +209,11 @@ const ExcalidrawEditor: React.FC = () => {
     enqueueSceneSave,
     saveDataRef,
     savePreviewRef,
+    historyRestorePendingRef,
+    runHistoryRestore,
   } = useEditorPersistence({
+    drawingId: id,
+    canEdit,
     refs: persistenceRefs,
     user,
     normalizeImageElementStatus,
@@ -295,6 +310,7 @@ const ExcalidrawEditor: React.FC = () => {
   const commandRefs = React.useMemo(
     () => ({
       currentDrawingVersion: currentDrawingVersionRef,
+      historyRestorePending: historyRestorePendingRef,
       excalidrawAPI,
       hasSceneChangesSinceLoad: hasSceneChangesSinceLoadRef,
       latestFiles: latestFilesRef,
@@ -303,7 +319,7 @@ const ExcalidrawEditor: React.FC = () => {
       suspiciousBlankLoad: suspiciousBlankLoadRef,
       uploadedRefs: uploadedFileRefsRef,
     }),
-    [saveDataRef, savePreviewRef],
+    [historyRestorePendingRef, saveDataRef, savePreviewRef],
   );
   const {
     handleBackClick,
@@ -345,6 +361,10 @@ const ExcalidrawEditor: React.FC = () => {
         editorContainerRef={editorContainerRef}
         initialData={initialData}
         isHeaderVisible={isHeaderVisible}
+        isHistoryOpen={isHistoryOpen}
+        historyPreview={isHistoryOpen ? historyPreview : null}
+        historyButtonRef={historyButtonRef}
+        shareButtonRef={shareButtonRef}
         isRenaming={isRenaming}
         isSavingOnLeave={isSavingOnLeave}
         isSceneLoading={isSceneLoading}
@@ -370,18 +390,24 @@ const ExcalidrawEditor: React.FC = () => {
         gridStep={gridStep}
         onSetGridStep={setGridStep}
         onShareOpen={() => setIsShareOpen(true)}
+        isShareOpen={isShareOpen}
+        onCloseShare={() => setIsShareOpen(false)}
         onHistoryOpen={() => setIsHistoryOpen(true)}
         onToggleAutoHide={handleToggleAutoHide}
+        onToggleTheme={toggleTheme}
       />
       <EditorDialogs
         drawingId={id}
-        drawingName={drawingName}
-        excalidrawAPIRef={excalidrawAPI}
+        historyButtonRef={historyButtonRef}
+        getCurrentVersion={() => currentDrawingVersionRef.current}
         isHistoryOpen={isHistoryOpen}
-        isShareOpen={isShareOpen}
-        previewBackupRef={previewBackup}
+        onPreviewHistory={setHistoryPreview}
+        onRestoreSnapshot={(snapshotId) =>
+          runHistoryRestore(id!, () =>
+            api.restoreDrawingSnapshot(id!, snapshotId),
+          )
+        }
         onCloseHistory={() => setIsHistoryOpen(false)}
-        onCloseShare={() => setIsShareOpen(false)}
       />
     </>
   );

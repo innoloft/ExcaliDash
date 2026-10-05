@@ -86,7 +86,7 @@ export const OAuthAuthorize: React.FC = () => {
               </ul>
               <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
                 This creates an API key named “{details.clientName} (OAuth)”. You can revoke it at any
-                time under Profile → API Keys.
+                time under Settings → API Keys.
               </p>
             </div>
             <div className="flex gap-3">

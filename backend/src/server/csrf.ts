@@ -43,7 +43,9 @@ export const registerCsrfProtection = ({
     if (req.secure) return true;
     if (!canTrustProxyHeaders(req)) return false;
     const forwardedProto = req.headers["x-forwarded-proto"];
-    const raw = Array.isArray(forwardedProto) ? forwardedProto[0] : forwardedProto;
+    const raw = Array.isArray(forwardedProto)
+      ? forwardedProto[0]
+      : forwardedProto;
     const firstHop = String(raw || "")
       .split(",")[0]
       .trim()
@@ -51,19 +53,23 @@ export const registerCsrfProtection = ({
     return firstHop === "https";
   };
 
-  const setCsrfClientCookie = (req: express.Request, res: express.Response, value: string): void => {
+  const setCsrfClientCookie = (
+    req: express.Request,
+    res: express.Response,
+    value: string,
+  ): void => {
     const secure = requestUsesHttps(req) ? "; Secure" : "";
     res.append(
       "Set-Cookie",
       `${CSRF_CLIENT_COOKIE_NAME}=${encodeURIComponent(
-        value
-      )}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${CSRF_CLIENT_COOKIE_MAX_AGE_SECONDS}${secure}`
+        value,
+      )}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${CSRF_CLIENT_COOKIE_MAX_AGE_SECONDS}${secure}`,
     );
   };
 
   const getClientIdForTokenIssue = (
     req: express.Request,
-    res: express.Response
+    res: express.Response,
   ): { clientId: string; strategy: "cookie" } => {
     const existingCookieValue = getCsrfClientCookieValue(req);
     if (existingCookieValue) {
@@ -83,7 +89,7 @@ export const registerCsrfProtection = ({
 
   const getClientIdForTokenIssueDebug = (
     req: express.Request,
-    res: express.Response
+    res: express.Response,
   ): string => {
     const { clientId, strategy } = getClientIdForTokenIssue(req, res);
 
@@ -101,8 +107,8 @@ export const registerCsrfProtection = ({
         clientIdPreview: clientId.slice(0, 60) + "...",
         trustProxySetting: req.app.get("trust proxy"),
         strategy,
-        validationCandidatesPreview: validationCandidates.map((candidate) =>
-          `${candidate.slice(0, 60)}...`
+        validationCandidatesPreview: validationCandidates.map(
+          (candidate) => `${candidate.slice(0, 60)}...`,
         ),
       });
     }
@@ -149,7 +155,7 @@ export const registerCsrfProtection = ({
   const csrfProtectionMiddleware = (
     req: express.Request,
     res: express.Response,
-    next: express.NextFunction
+    next: express.NextFunction,
   ) => {
     const safeMethods = ["GET", "HEAD", "OPTIONS"];
     if (safeMethods.includes(req.method)) {
@@ -205,7 +211,7 @@ export const registerCsrfProtection = ({
     }
 
     const isValidToken = clientIdCandidates.some((clientId) =>
-      validateCsrfToken(clientId, token)
+      validateCsrfToken(clientId, token),
     );
     if (!isValidToken) {
       return res.status(403).json({

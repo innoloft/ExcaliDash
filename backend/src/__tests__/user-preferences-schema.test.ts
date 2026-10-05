@@ -10,7 +10,8 @@ describe("userPreferencesSchema", () => {
       language: "fr-FR",
       gridStep: 8,
       scrollToZoom: true,
-      alwaysShowHeader: false,
+      editorAutoHide: false,
+      compactSidebar: true,
     });
     expect(parsed.success).toBe(true);
   });
@@ -31,19 +32,19 @@ describe("userPreferencesSchema", () => {
     ).toBe(false);
   });
 
-  it("accepts an alwaysShowHeader-only partial update", () => {
+  it("accepts an editorAutoHide-only partial update", () => {
     const parsed = userPreferencesSchema
       .partial()
-      .safeParse({ alwaysShowHeader: false });
+      .safeParse({ editorAutoHide: false });
     expect(parsed.success).toBe(true);
     if (parsed.success) {
-      expect(parsed.data.alwaysShowHeader).toBe(false);
+      expect(parsed.data.editorAutoHide).toBe(false);
     }
   });
 
-  it("rejects a non-boolean alwaysShowHeader", () => {
+  it("rejects a non-boolean editorAutoHide", () => {
     expect(
-      userPreferencesSchema.partial().safeParse({ alwaysShowHeader: "yes" }).success,
+      userPreferencesSchema.partial().safeParse({ editorAutoHide: "yes" }).success,
     ).toBe(false);
   });
 

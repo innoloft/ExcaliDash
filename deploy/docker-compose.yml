@@ -15,8 +15,8 @@ services:
   backend:
     image: excalidash-backend:innoloft
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: excalidash-backend
     # PID 1 that reaps zombies and forwards SIGTERM so graceful shutdown runs.
     init: true
@@ -77,7 +77,6 @@ services:
       context: .
       dockerfile: frontend/Dockerfile
       args:
-        VITE_APP_VERSION: "0.6.0"
         VITE_APP_BUILD_LABEL: "innoloft"
     container_name: excalidash-frontend
     # Bound to loopback: the host reverse proxy is the only way in.

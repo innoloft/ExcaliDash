@@ -42,7 +42,7 @@ const tokenError = (res: express.Response, status: number, error: string, descri
  * Authorization-code flow for the MCP connector. The access token handed to
  * the client is an ordinary, non-expiring ExcaliDash API key, so the MCP
  * endpoint needs no new token type and users revoke access under
- * Profile → API Keys.
+ * Settings → API Keys.
  */
 export const registerOAuthAuthorizeTokenRoutes = (app: express.Express, deps: Deps) => {
   const { prisma, requireAuth, signer } = deps;
