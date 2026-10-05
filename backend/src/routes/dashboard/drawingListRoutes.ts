@@ -223,7 +223,8 @@ export const registerDrawingListRoutes = (
     }),
   );
 
-  // Per-drawing preview: small, ETag-cacheable, revalidates against updatedAt.
+  // Per-drawing preview: small, ETag-cacheable, revalidates against updatedAt
+  // and the stored preview's length.
   // Registered before `/drawings/:id` so previews aren't treated as an id.
   app.get(
     "/drawings/:id/preview",
@@ -257,7 +258,9 @@ export const registerDrawingListRoutes = (
       }
 
       const updatedAtMs = new Date(drawing.updatedAt).getTime();
-      const etag = `W/"preview-${id}-${updatedAtMs}"`;
+      // A backfilled preview leaves updatedAt unchanged, so the length keeps
+      // a cached empty response from masking it.
+      const etag = `W/"preview-${id}-${updatedAtMs}-${drawing.preview?.length ?? 0}"`;
       res.setHeader("Cache-Control", "private, max-age=0, must-revalidate");
       res.setHeader("ETag", etag);
       if (req.headers["if-none-match"] === etag) {

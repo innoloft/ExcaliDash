@@ -208,6 +208,20 @@ export const getDrawingPreview = async (id: string): Promise<string | null> => {
   return typeof preview === "string" ? normalizePreviewSvg(preview) : null;
 };
 
+// Stores a thumbnail the dashboard rendered for a drawing without one. The
+// server keeps it only if the drawing still has no preview at `version`.
+export const saveDrawingPreview = async (
+  id: string,
+  preview: string,
+  version: number,
+): Promise<boolean> => {
+  const response = await api.put<{ stored: boolean }>(
+    `/drawings/${id}/preview`,
+    { preview, version },
+  );
+  return response.data?.stored === true;
+};
+
 export type ShareResolvedUser = { id: string; name: string; email: string };
 
 export const resolveShareUsers = async (

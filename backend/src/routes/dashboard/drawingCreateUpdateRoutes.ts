@@ -1,5 +1,6 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
+import { z } from "zod";
 import { Prisma } from "../../generated/client";
 import {
   canEditDrawing,
@@ -7,6 +8,7 @@ import {
   isOwnerAccess,
 } from "../../authz/sharing";
 import { rewritePreviewForInternedFiles } from "../../fileProcessing";
+import { sanitizeSvg } from "../../security";
 import {
   getUserTrashCollectionId,
   isTrashCollectionId,
@@ -442,6 +444,62 @@ export const registerDrawingCreateUpdateRoutes = (
         files: savedFiles,
         accessLevel: access,
       });
+    }),
+  );
+
+  const previewBackfillSchema = z.object({
+    preview: z.string().min(1),
+    version: z.number().int().positive(),
+  });
+
+  // Stores a thumbnail the dashboard rendered for a drawing that has none (for
+  // example one created through the MCP endpoint), so it is rendered once
+  // rather than on every dashboard visit. It never replaces an existing
+  // preview, only applies to the version it was rendered from, and leaves
+  // `updatedAt` alone: rendering a thumbnail is not an edit.
+  app.put(
+    "/drawings/:id/preview",
+    optionalAuth,
+    asyncHandler(async (req, res) => {
+      const principal = await getRequestPrincipal(req);
+      const { id } = req.params;
+      const access = await getDrawingAccess({
+        prisma,
+        principal,
+        drawingId: id,
+      });
+      if (!canEditDrawing(access)) {
+        if (respondWithAuthErrorIfPresent(req, res)) return;
+        return res.status(404).json({
+          error: "Drawing not found",
+          message: "Drawing does not exist",
+        });
+      }
+
+      const parsed = previewBackfillSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return respondWithValidationErrors(res, parsed.error.issues);
+      }
+      const preview = sanitizeSvg(parsed.data.preview);
+      if (!preview) {
+        return res.status(400).json({
+          error: "Validation error",
+          message: "Invalid preview",
+        });
+      }
+
+      const existing = await prisma.drawing.findUnique({
+        where: { id },
+        select: { updatedAt: true },
+      });
+      if (!existing) {
+        return res.status(404).json({ error: "Drawing not found" });
+      }
+      const { count } = await prisma.drawing.updateMany({
+        where: { id, version: parsed.data.version, preview: null },
+        data: { preview, updatedAt: existing.updatedAt },
+      });
+      return res.json({ stored: count > 0 });
     }),
   );
 };

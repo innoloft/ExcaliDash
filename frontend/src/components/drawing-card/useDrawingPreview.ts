@@ -13,6 +13,33 @@ export type HydratedDrawingData = {
   elements: any[];
   appState: any;
   files: Record<string, any>;
+  version: number;
+};
+
+const API_FILE_REF = /^\/api\/files\/[\w-]+\/[\w-]+$/;
+
+// The rendered preview inlines every image. The stored copy points back at the
+// drawing's files instead, as editor-saved previews do; they are inlined again
+// when the dashboard displays it.
+const toStorablePreview = (
+  preview: string,
+  originalFiles: Record<string, any>,
+  renderedFiles: Record<string, any>,
+): string => {
+  let storable = preview;
+  for (const [fileId, rendered] of Object.entries(renderedFiles)) {
+    const original = originalFiles[fileId]?.dataURL;
+    const inlined = rendered?.dataURL;
+    if (
+      typeof original === "string" &&
+      API_FILE_REF.test(original) &&
+      typeof inlined === "string" &&
+      inlined !== original
+    ) {
+      storable = storable.split(inlined).join(original);
+    }
+  }
+  return storable;
 };
 
 const normalizeImageElementsForPreview = (
@@ -67,6 +94,7 @@ export const useDrawingPreview = (
           elements: fullDrawing.elements || [],
           appState: fullDrawing.appState || {},
           files: fullDrawing.files || {},
+          version: fullDrawing.version,
         }))
         .catch((error) => {
           promise = null;
@@ -147,6 +175,22 @@ export const useDrawingPreview = (
         const previewHtml = normalizePreviewSvg(svg.outerHTML) || svg.outerHTML;
         setPreviewSvg(previewHtml);
         onPreviewGeneratedRef.current?.(drawing.id, previewHtml);
+
+        // Drawings created without a preview (e.g. through MCP) would otherwise
+        // be rendered here on every visit.
+        const canEdit =
+          drawing.accessLevel === undefined ||
+          drawing.accessLevel === "owner" ||
+          drawing.accessLevel === "edit";
+        if (canEdit && Number.isInteger(data.version)) {
+          void api
+            .saveDrawingPreview(
+              drawing.id,
+              toStorablePreview(svg.outerHTML, data.files, files),
+              data.version,
+            )
+            .catch(() => undefined);
+        }
       } catch (e) {
         if (!cancelled) {
           console.error("Failed to generate preview", e);
@@ -157,7 +201,13 @@ export const useDrawingPreview = (
     return () => {
       cancelled = true;
     };
-  }, [drawing.id, drawing.preview, ensureFullData, loadPreview]);
+  }, [
+    drawing.id,
+    drawing.preview,
+    drawing.accessLevel,
+    ensureFullData,
+    loadPreview,
+  ]);
 
   const buildExportDrawing = useCallback(async (): Promise<Drawing> => {
     const data = await ensureFullData();

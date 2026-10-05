@@ -1,5 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { createDrawing, deleteDrawing, updateDrawing } from "./helpers/api";
+import {
+  createDrawing,
+  deleteDrawing,
+  getDrawing,
+  updateDrawing,
+} from "./helpers/api";
 
 const dataURL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
@@ -92,6 +97,15 @@ for (const storedPreview of [false, true]) {
           }),
         )
         .toEqual([255, 0, 0, 255]);
+      if (!storedPreview) {
+        // The rendered preview is stored with a file reference, not the bytes.
+        await expect
+          .poll(async () => (await getDrawing(request, drawing.id)).preview)
+          .toContain(`/api/files/${drawing.id}/preview-file`);
+        expect((await getDrawing(request, drawing.id)).preview).not.toContain(
+          "data:image/png",
+        );
+      }
     } finally {
       await deleteDrawing(request, drawing.id);
     }
