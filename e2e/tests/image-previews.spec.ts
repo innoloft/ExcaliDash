@@ -69,11 +69,29 @@ for (const storedPreview of [false, true]) {
       await page.goto("/");
       const card = page.locator(`#drawing-card-${drawing.id}`);
       await card.scrollIntoViewIfNeeded();
-      await expect(card.locator("svg image")).toHaveAttribute(
-        "href",
-        /^data:image\/png;base64,/,
-      );
-      await expect(card.locator("svg use")).toHaveAttribute("href", /^#image-/);
+      // Thumbnails are rasterized; the red test image must show up in pixels.
+      const thumbnail = card.locator("img.drawing-preview-image");
+      await expect(thumbnail).toHaveAttribute("src", /^blob:/);
+      await expect
+        .poll(() =>
+          thumbnail.evaluate(async (img: HTMLImageElement) => {
+            await img.decode();
+            const canvas = document.createElement("canvas");
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const context = canvas.getContext("2d")!;
+            context.drawImage(img, 0, 0);
+            return Array.from(
+              context.getImageData(
+                Math.floor(canvas.width / 2),
+                Math.floor(canvas.height / 2),
+                1,
+                1,
+              ).data,
+            );
+          }),
+        )
+        .toEqual([255, 0, 0, 255]);
     } finally {
       await deleteDrawing(request, drawing.id);
     }

@@ -231,10 +231,8 @@ html.dark body {
   font-style: normal;
 }
 
-/* Same filters as Excalidraw: preserve hue and counter-filter raster images. */
-.dark .drawing-preview > svg {
+/* Same filter as Excalidraw's dark mode; embedded raster images carry their
+   counter-filter inside the SVG (see previewSvgForImage). */
+.dark .drawing-preview-image {
   filter: invert(93%) hue-rotate(180deg);
-}
-.dark .drawing-preview [data-preview-raster="true"] {
-  filter: invert(100%) hue-rotate(180deg) saturate(1.25);
 }

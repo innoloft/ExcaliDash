@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import type { NavigateFunction } from "react-router-dom";
 import * as api from "../../api";
 import type { Collection, DrawingSummary } from "../../types";
@@ -330,16 +330,31 @@ export const useDashboardDrawingActions = ({
     }
   };
 
+  // Previews loaded by the cards. Kept out of `drawings` state: putting each one
+  // there rerendered the whole grid per loaded thumbnail.
+  const loadedPreviewsRef = useRef(new Map<string, string>());
+  // Snapshot taken on mouse down, ahead of the drag image being captured.
+  const [dragPreviewSources, setDragPreviewSources] = useState<
+    ReadonlyMap<string, string>
+  >(() => new Map());
+
   const dragPreviewDrawings = useMemo(() => {
     if (!potentialDragId) return [];
+    const withPreview = (drawing: DrawingSummary) => ({
+      ...drawing,
+      preview: drawing.preview ?? dragPreviewSources.get(drawing.id),
+    });
     if (selectedIds.has(potentialDragId) && selectedIds.size > 1) {
-      return drawings.filter((drawing) => selectedIds.has(drawing.id));
+      return drawings
+        .filter((drawing) => selectedIds.has(drawing.id))
+        .map(withPreview);
     }
     const drawing = drawings.find((item) => item.id === potentialDragId);
-    return drawing ? [drawing] : [];
-  }, [potentialDragId, selectedIds, drawings]);
+    return drawing ? [withPreview(drawing)] : [];
+  }, [potentialDragId, selectedIds, drawings, dragPreviewSources]);
 
   const handleCardMouseDown = (_event: React.MouseEvent, id: string) => {
+    setDragPreviewSources(new Map(loadedPreviewsRef.current));
     setPotentialDragId(id);
   };
 
@@ -348,16 +363,9 @@ export const useDashboardDrawingActions = ({
     if (preview) event.dataTransfer.setDragImage(preview, 80, 50);
   };
 
-  const handlePreviewGenerated = useCallback(
-    (id: string, preview: string) => {
-      setDrawings((current) =>
-        current.map((drawing) =>
-          drawing.id === id ? { ...drawing, preview } : drawing,
-        ),
-      );
-    },
-    [setDrawings],
-  );
+  const handlePreviewGenerated = useCallback((id: string, preview: string) => {
+    loadedPreviewsRef.current.set(id, preview);
+  }, []);
 
   return {
     drawingToDelete,

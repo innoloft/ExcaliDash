@@ -73,11 +73,10 @@ const maybeRepairFlattenedImagePreview = (svg: SVGSVGElement) => {
   }
 };
 
-export const previewHasEmbeddedImages = (
-  preview: string | null | undefined,
-): boolean => typeof preview === "string" && /<image[\s>]/i.test(preview);
+const hasImageTag = (preview: string): boolean => /<image[\s>]/i.test(preview);
 
 export const previewHasOrphanedImages = (preview: string): boolean => {
+  if (!hasImageTag(preview)) return false;
   const doc = new DOMParser().parseFromString(preview, "image/svg+xml");
   // Older sanitization removed Excalidraw's symbol/use pairs but left their
   // images in defs. Those thumbnails must be rebuilt from the actual scene.
@@ -87,6 +86,7 @@ export const previewHasOrphanedImages = (preview: string): boolean => {
 // SVG image references need inline bytes to render reliably in thumbnails,
 // including files served through an authenticated endpoint or S3 redirect.
 export const rehydratePreviewSvg = async (preview: string): Promise<string> => {
+  if (!hasImageTag(preview)) return preview;
   const doc = new DOMParser().parseFromString(preview, "image/svg+xml");
   if (doc.documentElement.tagName.toLowerCase() !== "svg") return preview;
   const images = Array.from(doc.querySelectorAll("image"));
@@ -105,6 +105,69 @@ export const rehydratePreviewSvg = async (preview: string): Promise<string> => {
     images[Number(index)].removeAttribute("xlink:href");
   }
   return normalizePreviewSvg(doc.documentElement.outerHTML) ?? preview;
+};
+
+const RASTER_RESTORE_FILTER_ID = "excalidash-raster-restore";
+
+// The SVG filter equivalent of `invert(100%) hue-rotate(180deg) saturate(1.25)`.
+// Page CSS cannot reach into an <img>, so the dark-mode raster correction has
+// to travel inside the SVG document itself.
+const RASTER_RESTORE_FILTER = `<filter xmlns="http://www.w3.org/2000/svg" id="${RASTER_RESTORE_FILTER_ID}" color-interpolation-filters="sRGB"><feComponentTransfer><feFuncR type="table" tableValues="1 0"/><feFuncG type="table" tableValues="1 0"/><feFuncB type="table" tableValues="1 0"/></feComponentTransfer><feColorMatrix type="hueRotate" values="180"/><feColorMatrix type="saturate" values="1.25"/></filter>`;
+
+const withRasterRestoreFilter = (preview: string): string => {
+  try {
+    const doc = new DOMParser().parseFromString(preview, "image/svg+xml");
+    const svg = doc.documentElement;
+    if (svg.tagName.toLowerCase() !== "svg") return preview;
+    const filter = new DOMParser().parseFromString(
+      RASTER_RESTORE_FILTER,
+      "image/svg+xml",
+    ).documentElement;
+    let defs = svg.querySelector("defs");
+    if (!defs) {
+      defs = doc.createElementNS("http://www.w3.org/2000/svg", "defs");
+      svg.insertBefore(defs, svg.firstChild);
+    }
+    defs.appendChild(doc.importNode(filter, true));
+    for (const node of svg.querySelectorAll('[data-preview-raster="true"]')) {
+      node.setAttribute("filter", `url(#${RASTER_RESTORE_FILTER_ID})`);
+    }
+    return new XMLSerializer().serializeToString(svg);
+  } catch {
+    return preview;
+  }
+};
+
+// Stored previews lose their <style> (and so Excalidraw's inlined fonts) to
+// server-side sanitization. Inline, their text picked up the app's global
+// Excalifont; an SVG image cannot reach page fonts, so it gets its own copy.
+export const previewNeedsExcalifont = (preview: string): boolean =>
+  /<text\b/i.test(preview) &&
+  preview.includes("Excalifont") &&
+  !preview.includes("@font-face");
+
+// Prepares a normalized preview for rendering as a standalone image. In dark
+// mode the whole image is inverted by CSS; embedded rasters get a counter
+// filter so photos keep their natural colors.
+export const previewSvgForImage = (
+  rawPreview: string,
+  { dark, excalifontDataUrl }: { dark: boolean; excalifontDataUrl?: string },
+): string => {
+  // Inline SVG tolerates a missing namespace; an SVG image does not render.
+  let preview = /<svg\b[^>]*\sxmlns=/i.test(rawPreview)
+    ? rawPreview
+    : rawPreview.replace(/<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+  if (dark && preview.includes("data-preview-raster")) {
+    preview = withRasterRestoreFilter(preview);
+  }
+  if (excalifontDataUrl && previewNeedsExcalifont(preview)) {
+    preview = preview.replace(
+      /<svg\b[^>]*>/i,
+      (openTag) =>
+        `${openTag}<style>@font-face{font-family:"Excalifont";src:url(${excalifontDataUrl}) format("woff2");}</style>`,
+    );
+  }
+  return preview;
 };
 
 export const normalizePreviewSvg = (

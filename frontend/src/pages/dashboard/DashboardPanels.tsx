@@ -2,6 +2,7 @@ import React from "react";
 import clsx from "clsx";
 import { AlertTriangle, Folder, Inbox, Loader2, Trash2 } from "lucide-react";
 import { DrawingCard } from "../../components/DrawingCard";
+import { PreviewImage } from "../../components/drawing-card/PreviewImage";
 import type { Collection, DrawingSummary } from "../../types";
 
 type DragPreviewProps = {
@@ -28,10 +29,12 @@ export const DragPreview: React.FC<DragPreviewProps> = ({ drawings }) => (
           >
             <div className="absolute inset-0 opacity-[0.3] bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] [background-size:24px_24px]" />
             {drawing.preview ? (
-              <div
-                className="drawing-preview w-full h-full p-2 flex items-center justify-center [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:drop-shadow-sm relative z-10"
-                dangerouslySetInnerHTML={{ __html: drawing.preview }}
-              />
+              <div className="drawing-preview w-full h-full p-2 flex items-center justify-center relative z-10">
+                <PreviewImage
+                  svg={drawing.preview}
+                  className="w-auto h-auto max-w-full max-h-full"
+                />
+              </div>
             ) : (
               <div className="text-slate-300 dark:text-neutral-600 relative z-10">
                 <Folder size={24} />

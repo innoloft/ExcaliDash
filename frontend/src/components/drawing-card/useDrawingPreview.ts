@@ -3,7 +3,6 @@ import type { Drawing, DrawingSummary } from "../../types";
 import {
   normalizePreviewSvg,
   isDefaultPreviewBackground,
-  previewHasEmbeddedImages,
   rehydratePreviewSvg,
   previewHasOrphanedImages,
 } from "../../utils/previewSvg";
@@ -47,8 +46,10 @@ export const useDrawingPreview = (
   onPreviewGenerated?: (id: string, preview: string) => void,
   loadPreview = true,
 ) => {
+  // Lazy: parsing a large preview on every render made each dashboard update
+  // cost one full SVG parse per card.
   const [previewSvg, setPreviewSvg] = useState<string | null>(
-    normalizePreviewSvg(drawing.preview) ?? null,
+    () => normalizePreviewSvg(drawing.preview) ?? null,
   );
   // Parent renders create new callbacks as sibling previews finish. Updating
   // the notification target must not cancel and restart every pending request.
@@ -170,7 +171,6 @@ export const useDrawingPreview = (
 
   return {
     previewSvg,
-    hasEmbeddedImages: previewHasEmbeddedImages(previewSvg),
     buildExportDrawing,
   };
 };

@@ -8,6 +8,7 @@ import { StorageManageModal } from "./StorageManageModal";
 import { CollectionPicker } from "./drawing-card/CollectionPicker";
 import { DrawingCardContextMenu } from "./drawing-card/DrawingCardContextMenu";
 import { useDrawingPreview } from "./drawing-card/useDrawingPreview";
+import { PreviewImage } from "./drawing-card/PreviewImage";
 import * as api from "../api";
 
 interface DrawingCardProps {
@@ -208,13 +209,12 @@ export const DrawingCard: React.FC<DrawingCardProps> = ({
         >
           <div className="absolute inset-0 opacity-[0.25] bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] [background-size:24px_24px]"></div>
           {previewSvg ? (
-            <div
-              className={clsx(
-                "w-full h-full p-4 sm:p-5 flex items-center justify-center [&>svg]:w-auto [&>svg]:h-auto [&>svg]:max-w-full [&>svg]:max-h-full [&>svg]:drop-shadow-xs transition-transform duration-550",
-                "drawing-preview",
-              )}
-              dangerouslySetInnerHTML={{ __html: previewSvg }}
-            />
+            <div className="drawing-preview relative w-full h-full p-4 sm:p-5 flex items-center justify-center">
+              <PreviewImage
+                svg={previewSvg}
+                className="w-auto h-auto max-w-full max-h-full"
+              />
+            </div>
           ) : (
             <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-24 lg:h-24 bg-white dark:bg-neutral-900 rounded-2xl shadow-sm flex items-center justify-center text-neutral-300 dark:text-neutral-400 border border-neutral-100 dark:border-neutral-800 transform group-hover:scale-105 group-hover:rotate-1 transition-all duration-500">
               <PenTool
