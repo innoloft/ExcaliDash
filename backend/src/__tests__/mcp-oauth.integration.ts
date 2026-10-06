@@ -236,6 +236,6 @@ describe("MCP OAuth connector flow", () => {
       .set("Accept", "application/json, text/event-stream")
       .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
     expect(tools.status).toBe(200);
-    expect(tools.body.result.tools).toHaveLength(4);
+    expect(tools.body.result.tools).toHaveLength(6);
   });
 });

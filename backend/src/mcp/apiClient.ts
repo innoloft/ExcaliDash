@@ -28,6 +28,8 @@ export type CreateDrawingInput = DrawingScene & {
 
 export type ReplaceDrawingInput = DrawingScene & { name?: string };
 
+export type DrawingDetail = DrawingSummary & DrawingScene;
+
 /** The subset of the ExcaliDash REST API the MCP tools use. */
 export interface ExcaliDashApi {
   listCollections(): Promise<Collection[]>;
@@ -37,6 +39,13 @@ export interface ExcaliDashApi {
   replaceDrawing(
     id: string,
     input: ReplaceDrawingInput,
+  ): Promise<DrawingSummary>;
+  getDrawing(id: string): Promise<DrawingDetail>;
+  /** Write `elements` only if the drawing is still at `version` (else 409). */
+  updateElements(
+    id: string,
+    elements: unknown[],
+    version: number,
   ): Promise<DrawingSummary>;
 }
 
@@ -183,6 +192,32 @@ export class ExcaliDashClient implements ExcaliDashApi {
         ...input,
         preview: null,
       },
+    );
+    return toSummary(raw);
+  }
+
+  async getDrawing(id: string): Promise<DrawingDetail> {
+    const raw = await this.request<any>(
+      "GET",
+      `/drawings/${encodeURIComponent(id)}`,
+    );
+    return {
+      ...toSummary(raw),
+      elements: Array.isArray(raw.elements) ? raw.elements : [],
+      appState: raw.appState ?? {},
+      files: raw.files ?? {},
+    };
+  }
+
+  async updateElements(
+    id: string,
+    elements: unknown[],
+    version: number,
+  ): Promise<DrawingSummary> {
+    const raw = await this.request<any>(
+      "PUT",
+      `/drawings/${encodeURIComponent(id)}`,
+      { elements, version, preview: null },
     );
     return toSummary(raw);
   }

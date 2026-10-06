@@ -130,8 +130,10 @@ describe("MCP endpoint", () => {
     expect(tools).toEqual([
       "list_collections",
       "list_drawings",
+      "get_drawing",
       "add_drawing",
       "replace_drawing",
+      "upsert_elements",
     ]);
 
     const added = await call(client, "add_drawing", {
@@ -163,6 +165,53 @@ describe("MCP endpoint", () => {
     ).toEqual(["second"]);
     expect(stored.collectionId).toBe(added.json.collectionId);
     expect(stored.preview).toBeNull();
+    await client.close();
+  });
+
+  it("uploads a drawing in batches, reads it back and deletes from it", async () => {
+    const client = await connect(writeKey);
+    const element = (id: string, y: number) => ({
+      ...scene(id).elements[0],
+      y,
+      version: 1,
+    });
+    const added = await call(client, "add_drawing", {
+      content: { elements: [element("b1", 0)] },
+      name: "Batched",
+    });
+    expect(added.isError).toBe(false);
+
+    const url = added.json.url;
+    for (const batch of [[element("b2", 20)], [element("b3", 40)]]) {
+      const upserted = await call(client, "upsert_elements", {
+        drawingId: url,
+        elements: batch,
+      });
+      expect(upserted.isError).toBe(false);
+      expect(upserted.json.added).toBe(1);
+    }
+
+    const read = await call(client, "get_drawing", { drawingId: url });
+    expect(read.isError).toBe(false);
+    expect(read.json.elements.map((e: { id: string }) => e.id)).toEqual([
+      "b1",
+      "b2",
+      "b3",
+    ]);
+
+    const removed = await call(client, "upsert_elements", {
+      name: "Batched",
+      deleteIds: ["b2"],
+    });
+    expect(removed.json).toMatchObject({ deleted: 1, elementCount: 2 });
+    const file = await call(client, "get_drawing", {
+      drawingId: added.json.id,
+      format: "file",
+    });
+    expect(file.json.elements.map((e: { id: string }) => e.id)).toEqual([
+      "b1",
+      "b3",
+    ]);
     await client.close();
   });
 
