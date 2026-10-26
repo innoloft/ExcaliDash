@@ -13,7 +13,7 @@ Run the backend and frontend in separate terminals.
 
 ## Requirements
 
-- Node.js 20.19+ or 22.12+
+- Node.js 24.22.1+ (`nvm use` selects the version in `.nvmrc`)
 - npm 10
 - Git
 

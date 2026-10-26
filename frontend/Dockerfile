@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:24.22.1-alpine AS builder
 
 WORKDIR /app/frontend
 
@@ -22,6 +22,11 @@ RUN npm run build
 
 # Production stage
 FROM nginxinc/nginx-unprivileged:alpine
+
+# Apply Alpine security fixes that may postdate the nginx base image.
+USER root
+RUN apk upgrade --no-cache
+USER nginx
 
 # Copy nginx config template (will be processed at runtime)
 COPY --chown=nginx:nginx --chmod=0444 frontend/nginx.conf.template /etc/nginx/nginx.conf.template
