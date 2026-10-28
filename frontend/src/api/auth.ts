@@ -311,8 +311,20 @@ const redirectToLogin = async () => {
   if (window.location.pathname !== "/login") window.location.href = "/login";
 };
 
-const refreshAccessToken = async (): Promise<void> => {
-  refreshPromise ||= authRefresh().finally(() => {
+// With refresh-token rotation each refresh token is single-use, and every tab
+// shares the same cookie. Two tabs refreshing at once send the same token; the
+// loser gets a 401 and its request fails as "Invalid or expired token". Holding
+// a cross-tab lock serializes refreshes, so each one sends the cookie the
+// previous refresh just rotated.
+const REFRESH_LOCK_NAME = "excalidash-auth-refresh";
+
+const refreshExclusive = (): Promise<void> =>
+  typeof navigator !== "undefined" && navigator.locks
+    ? navigator.locks.request(REFRESH_LOCK_NAME, () => authRefresh())
+    : authRefresh();
+
+export const refreshAccessToken = async (): Promise<void> => {
+  refreshPromise ||= refreshExclusive().finally(() => {
     refreshPromise = null;
   });
   return refreshPromise;

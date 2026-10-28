@@ -10,7 +10,7 @@ import { useNavigate } from "react-router-dom";
 import {
   authStatus,
   authMe,
-  authRefresh,
+  refreshAccessToken,
   authLogout,
   authLogin,
   authRegister,
@@ -192,7 +192,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
           return;
         }
         try {
-          await authRefresh();
+          await refreshAccessToken();
           const userResponse = await authMe();
           setUser(userResponse.user);
           localStorage.setItem(USER_KEY, JSON.stringify(userResponse.user));
