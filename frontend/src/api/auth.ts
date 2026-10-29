@@ -318,10 +318,13 @@ const redirectToLogin = async () => {
 // previous refresh just rotated.
 const REFRESH_LOCK_NAME = "excalidash-auth-refresh";
 
-const refreshExclusive = (): Promise<void> =>
-  typeof navigator !== "undefined" && navigator.locks
-    ? navigator.locks.request(REFRESH_LOCK_NAME, () => authRefresh())
-    : authRefresh();
+const refreshExclusive = async (): Promise<void> => {
+  if (typeof navigator !== "undefined" && navigator.locks) {
+    await navigator.locks.request(REFRESH_LOCK_NAME, () => authRefresh());
+    return;
+  }
+  await authRefresh();
+};
 
 export const refreshAccessToken = async (): Promise<void> => {
   refreshPromise ||= refreshExclusive().finally(() => {
