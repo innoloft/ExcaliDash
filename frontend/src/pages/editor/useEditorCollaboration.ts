@@ -168,12 +168,32 @@ export const useEditorCollaboration = ({
         }
       }
     });
+    // The handshake authenticates from the access-token cookie. A reconnect
+    // after it expired (sleep, network blip, backend restart) comes back
+    // anonymous and join-room is denied. Refresh and reconnect once before
+    // treating it as a real loss of access: the /shared/ fallback does not
+    // refresh, so it would only show "Invalid or expired token".
+    let accessDeniedRetried = false;
     socket.on("error", (payload: any) => {
       const message =
         typeof payload?.message === "string" ? payload.message : null;
       console.warn("[Editor] Socket error:", payload);
       if (message === "You do not have access to this drawing") {
-        onAccessDenied();
+        if (accessDeniedRetried) {
+          onAccessDenied();
+          return;
+        }
+        accessDeniedRetried = true;
+        api
+          .refreshAccessToken()
+          .then(() => {
+            if (cancelled) return;
+            socket.disconnect();
+            socket.connect();
+          })
+          .catch(() => {
+            if (!cancelled) onAccessDenied();
+          });
         return;
       }
       if (message) toast.error(message);
@@ -411,6 +431,7 @@ export const useEditorCollaboration = ({
     socket.on("disconnect", invalidateCatchup);
     const detachRoomJoin = bindRoomJoin(socket, drawingId, me, (payload) => {
       if (cancelled) return;
+      accessDeniedRetried = false;
       void catchUpScene();
       const serverUser = payload?.user;
       if (!serverUser || typeof serverUser.id !== "string") return;
