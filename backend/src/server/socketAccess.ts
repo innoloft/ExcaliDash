@@ -26,6 +26,8 @@ export type SocketState = {
   principal: DrawingPrincipal | null;
   access: Map<string, AccessCacheEntry>;
   joinedRooms: Set<string>;
+  // Set when the socket authenticated with an API key rather than a session.
+  apiKeyScopes?: string[] | null;
 };
 
 // Remove a socket's presence from each of the given rooms, deleting the room

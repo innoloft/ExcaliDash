@@ -5,6 +5,12 @@ import { AuthModeService } from "../auth/authMode";
 import { ACCESS_TOKEN_COOKIE_NAME, parseCookieHeader } from "../auth/cookies";
 import { BOOTSTRAP_USER_ID } from "../auth/authMode";
 import {
+  apiKeyHashMatches,
+  extractApiKeyId,
+  isApiKeyToken,
+  parseApiKeyScopes,
+} from "../auth/apiKeys";
+import {
   getDrawingAccess,
   canEditDrawing,
   canViewDrawing,
@@ -72,6 +78,25 @@ export const registerSocketHandlers = ({
     return "#4f46e5";
   };
 
+  // Native clients (e.g. ExcalidrawZ) sign in through OAuth and hold an
+  // account-wide API key instead of a browser session.
+  const getApiKeyPrincipal = async (
+    token: string,
+  ): Promise<{ userId: string; scopes: string[] } | null> => {
+    const keyId = extractApiKeyId(token);
+    if (!keyId) return null;
+    const apiKey = await prisma.apiKey.findUnique({
+      where: { keyId },
+      include: { user: { select: { id: true, isActive: true } } },
+    });
+    if (!apiKey || apiKey.revokedAt || apiKey.drawingId) return null;
+    if (!apiKey.user.isActive) return null;
+    if (!apiKeyHashMatches(token, apiKey.tokenHash)) return null;
+    const scopes = parseApiKeyScopes(apiKey.scopes);
+    if (!scopes.includes("drawings:read")) return null;
+    return { userId: apiKey.user.id, scopes };
+  };
+
   const getSocketAuthUserId = async (
     token?: string,
   ): Promise<string | null> => {
@@ -116,8 +141,19 @@ export const registerSocketHandlers = ({
       })();
       const token = tokenFromAuth || tokenFromCookie;
       const authEnabled = await authModeService.getAuthEnabled();
-      const userId = await getSocketAuthUserId(token);
       const state = getState(socket);
+
+      if (authEnabled && tokenFromAuth && isApiKeyToken(tokenFromAuth)) {
+        const apiKeyPrincipal = await getApiKeyPrincipal(tokenFromAuth);
+        if (!apiKeyPrincipal) {
+          return next(new Error("Invalid or revoked API key"));
+        }
+        state.principal = { kind: "user", userId: apiKeyPrincipal.userId };
+        state.apiKeyScopes = apiKeyPrincipal.scopes;
+        return next();
+      }
+
+      const userId = await getSocketAuthUserId(token);
 
       if (userId) {
         state.principal = { kind: "user", userId };
@@ -334,7 +370,10 @@ export const registerSocketHandlers = ({
         dropDrawingAccess(drawingId);
         return;
       }
-      if (!canEditDrawing(joinedAccess)) {
+      if (
+        !canEditDrawing(joinedAccess) ||
+        (state.apiKeyScopes && !state.apiKeyScopes.includes("drawings:write"))
+      ) {
         socket.emit("error", {
           message: "Read-only access: cannot edit this drawing",
         });
