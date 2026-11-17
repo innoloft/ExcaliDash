@@ -132,6 +132,17 @@ const getApiKeyRouteResource = (
     if (segments.length === 2 && segments[1] === "shared" && isRead) {
       return "drawings";
     }
+    // Comment threads follow the drawing's own access rules in their route
+    // handlers; the key only needs the matching drawings scope.
+    if (segments.length >= 3 && segments[2] === "comments") {
+      if (segments.length === 3 && ["GET", "HEAD", "POST"].includes(method)) {
+        return "drawings";
+      }
+      if (segments.length === 4 && ["PATCH", "DELETE"].includes(method)) {
+        return "drawings";
+      }
+      return null;
+    }
     if (
       segments.length === 2 &&
       segments[1] !== "shared" &&

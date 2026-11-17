@@ -164,6 +164,52 @@ describe("API key authentication", () => {
     expect(otherUsersFile.status).toBe(404);
   });
 
+  it("lets native clients read and write comment threads", async () => {
+    const drawing = await prisma.drawing.create({
+      data: { name: "Reviewed", userId, elements: "[]", appState: "{}", files: "{}" },
+      select: { id: true },
+    });
+    const auth = { Authorization: `Bearer ${apiKeyToken}` };
+
+    const created = await request(app)
+      .post(`/drawings/${drawing.id}/comments`)
+      .set(auth)
+      .send({ body: "Check this", x: 10, y: 20 });
+    expect(created.status).toBe(201);
+    expect(created.body.authorUserId).toBe(userId);
+    expect(created.body.authorName).toBe("API Key User");
+
+    const reply = await request(app)
+      .post(`/drawings/${drawing.id}/comments`)
+      .set(auth)
+      .send({ body: "Done", parentId: created.body.id });
+    expect(reply.status).toBe(201);
+
+    const resolved = await request(app)
+      .patch(`/drawings/${drawing.id}/comments/${created.body.id}`)
+      .set(auth)
+      .send({ resolved: true, x: 30, y: 40 });
+    expect(resolved.status).toBe(200);
+    expect(resolved.body.resolvedAt).not.toBeNull();
+    expect(resolved.body.x).toBe(30);
+
+    const listed = await request(app)
+      .get(`/drawings/${drawing.id}/comments`)
+      .set(auth);
+    expect(listed.status).toBe(200);
+    expect(listed.body.comments).toHaveLength(2);
+
+    const othersComments = await request(app)
+      .get(`/drawings/${drawing.id}/comments`)
+      .set("Authorization", `Bearer ${adminApiKeyToken}`);
+    expect(othersComments.status).toBe(404);
+
+    const deleted = await request(app)
+      .delete(`/drawings/${drawing.id}/comments/${created.body.id}`)
+      .set(auth);
+    expect(deleted.status).toBe(204);
+  });
+
   it("rejects API key management with API key auth", async () => {
     const response = await request(app)
       .get("/auth/api-keys")
