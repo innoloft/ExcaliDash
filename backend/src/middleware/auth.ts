@@ -115,8 +115,21 @@ const getApiKeyRouteResource = (
   const path = normalizeRequestPath(req);
   const segments = path.split("/").filter(Boolean);
   const method = req.method;
+  const isRead = ["GET", "HEAD"].includes(method);
+  // Native clients (e.g. ExcalidrawZ) sign in with OAuth and get an API key.
+  // They need to know whose key it is and to load a drawing's images, which
+  // the files route authorizes through drawing access.
+  if (isRead && segments[0] === "auth" && segments[1] === "me" && segments.length === 2) {
+    return "drawings";
+  }
+  if (isRead && segments[0] === "files" && segments.length === 3) {
+    return "drawings";
+  }
   if (segments[0] === "drawings") {
     if (segments.length === 1 && ["GET", "HEAD", "POST"].includes(method)) {
+      return "drawings";
+    }
+    if (segments.length === 2 && segments[1] === "shared" && isRead) {
       return "drawings";
     }
     if (

@@ -120,6 +120,50 @@ describe("API key authentication", () => {
     expect(drawingsResponse.status).toBe(200);
   });
 
+  it("lets native clients read their identity, shared drawings and images", async () => {
+    const meResponse = await request(app)
+      .get("/auth/me")
+      .set("Authorization", `Bearer ${apiKeyToken}`);
+    expect(meResponse.status).toBe(200);
+    expect(meResponse.body?.user?.id).toBe(userId);
+
+    const sharedResponse = await request(app)
+      .get("/drawings/shared")
+      .set("Authorization", `Bearer ${apiKeyToken}`);
+    expect(sharedResponse.status).toBe(200);
+
+    const drawing = await prisma.drawing.create({
+      data: {
+        name: "With image",
+        userId,
+        elements: "[]",
+        appState: "{}",
+        files: "{}",
+      },
+      select: { id: true },
+    });
+    await prisma.drawingFile.create({
+      data: {
+        drawingId: drawing.id,
+        fileId: "file1",
+        mimeType: "image/png",
+        sizeBytes: 3,
+        storage: "db",
+        s3Key: null,
+        data: Buffer.from([1, 2, 3]),
+      },
+    });
+    const fileResponse = await request(app)
+      .get(`/files/${drawing.id}/file1`)
+      .set("Authorization", `Bearer ${apiKeyToken}`);
+    expect(fileResponse.status).toBe(200);
+
+    const otherUsersFile = await request(app)
+      .get(`/files/${drawing.id}/file1`)
+      .set("Authorization", `Bearer ${adminApiKeyToken}`);
+    expect(otherUsersFile.status).toBe(404);
+  });
+
   it("rejects API key management with API key auth", async () => {
     const response = await request(app)
       .get("/auth/api-keys")
